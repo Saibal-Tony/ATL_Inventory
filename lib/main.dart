@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'database/database_helper.dart';
-import 'screens/add_part_screen.dart';
+import 'screens/inventory_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,14 +14,17 @@ Future<void> main() async {
 
   await DatabaseHelper.instance.database;
 
-  runApp(const MyApp());
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(home: AddPartScreen());
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: "ATL Inventory",
+      theme: ThemeData(useMaterial3: true),
+      home: InventoryScreen(readOnly: true),
+    );
   }
 }

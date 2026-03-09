@@ -24,17 +24,17 @@ class DatabaseHelper {
   Future _createDB(Database db, int version) async {
     await db.execute('''
 CREATE TABLE parts (
-  id TEXT PRIMARY KEY,
+  id TEXT PRIMARY KEY NOT NULL,
   serial_no TEXT,
   part_name TEXT,
   category TEXT,
-  box_no INTEGER,
   total_parts INTEGER,
   current_count INTEGER,
+  box_no INTEGER,
   availability INTEGER,
   image_path TEXT,
   last_updated TEXT,
-  sync_status INTEGER
+  sync_status INTEGER DEFAULT 0
 )
 ''');
   }
