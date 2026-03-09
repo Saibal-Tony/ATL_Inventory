@@ -30,6 +30,16 @@ class _AddPartScreenState extends State<AddPartScreen> {
 
   final picker = ImagePicker();
 
+  @override
+  void dispose() {
+    serialController.dispose();
+    nameController.dispose();
+    categoryController.dispose();
+    boxController.dispose();
+    totalController.dispose();
+    super.dispose();
+  }
+
   Future<void> pickFromCamera() async {
     final picked = await picker.pickImage(source: ImageSource.camera);
 
@@ -53,7 +63,7 @@ class _AddPartScreenState extends State<AddPartScreen> {
   Future<void> savePart() async {
     if (isSaving) return;
 
-    if (nameController.text.isEmpty) {
+    if (nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text("Part name required")));
@@ -67,13 +77,21 @@ class _AddPartScreenState extends State<AddPartScreen> {
     try {
       final db = await DatabaseHelper.instance.database;
 
+      final totalParts = int.tryParse(totalController.text) ?? 0;
+
+      if (availability > totalParts && totalParts != 0) {
+        availability = totalParts;
+      }
+
+      final id = const Uuid().v4();
+
       await db.insert('parts', {
-        'id': const Uuid().v4(),
+        'id': id,
         'serial_no': serialController.text,
         'part_name': nameController.text,
         'category': categoryController.text,
         'box_no': int.tryParse(boxController.text) ?? 0,
-        'total_parts': int.tryParse(totalController.text) ?? 0,
+        'total_parts': totalParts,
         'current_count': availability,
         'availability': availability,
         'image_path': imageFile?.path ?? '',
@@ -81,7 +99,7 @@ class _AddPartScreenState extends State<AddPartScreen> {
         'sync_status': 0,
       });
 
-      SyncService().pushLocalParts();
+      await SyncService().pushLocalParts();
 
       ScaffoldMessenger.of(
         context,
@@ -99,15 +117,33 @@ class _AddPartScreenState extends State<AddPartScreen> {
     });
   }
 
+  void increaseAvailability() {
+    final total = int.tryParse(totalController.text) ?? 999;
+
+    if (availability < total) {
+      setState(() {
+        availability++;
+      });
+    }
+  }
+
+  void decreaseAvailability() {
+    if (availability > 0) {
+      setState(() {
+        availability--;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Add Part")),
 
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
 
-        child: ListView(
+        child: Column(
           children: [
             TextField(
               controller: serialController,
@@ -145,11 +181,7 @@ class _AddPartScreenState extends State<AddPartScreen> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.remove),
-                  onPressed: () {
-                    setState(() {
-                      if (availability > 0) availability--;
-                    });
-                  },
+                  onPressed: decreaseAvailability,
                 ),
 
                 Text(
@@ -159,11 +191,7 @@ class _AddPartScreenState extends State<AddPartScreen> {
 
                 IconButton(
                   icon: const Icon(Icons.add),
-                  onPressed: () {
-                    setState(() {
-                      availability++;
-                    });
-                  },
+                  onPressed: increaseAvailability,
                 ),
               ],
             ),
@@ -194,14 +222,20 @@ class _AddPartScreenState extends State<AddPartScreen> {
 
             if (imageFile != null)
               Padding(
-                padding: const EdgeInsets.only(top: 10),
-                child: Image.file(imageFile!, height: 150),
+                padding: const EdgeInsets.only(top: 12),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.file(imageFile!, height: 150, fit: BoxFit.cover),
+                ),
               ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 25),
 
             ElevatedButton(
               onPressed: isSaving ? null : savePart,
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 50),
+              ),
               child: isSaving
                   ? const CircularProgressIndicator()
                   : const Text("Save Part"),

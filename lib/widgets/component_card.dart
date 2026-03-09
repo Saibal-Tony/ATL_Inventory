@@ -5,51 +5,67 @@ class ComponentCard extends StatelessWidget {
   final Map part;
   final bool readOnly;
   final Function()? onDelete;
+  final Function()? onEdit;
 
   const ComponentCard({
     super.key,
     required this.part,
     required this.readOnly,
     this.onDelete,
+    this.onEdit,
   });
 
   @override
   Widget build(BuildContext context) {
     final imagePath = part['image_path'];
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? Colors.grey.shade800 : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 6,
+            color: Colors.black.withOpacity(0.15),
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
 
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          /// IMAGE
           Expanded(
             child: Stack(
               children: [
-                Positioned.fill(
-                  child: (imagePath != null && imagePath != '')
-                      ? Image.file(File(imagePath), fit: BoxFit.cover)
-                      : Image.asset(
-                          "assets/default_part.jpg",
-                          fit: BoxFit.cover,
-                        ),
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
+                  child: SizedBox.expand(
+                    child: (imagePath != null && imagePath != '')
+                        ? Image.file(File(imagePath), fit: BoxFit.cover)
+                        : Image.asset(
+                            "assets/default_part.jpg",
+                            fit: BoxFit.cover,
+                          ),
+                  ),
                 ),
 
+                /// STOCK COUNT
                 Positioned(
                   top: 8,
                   right: 8,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
+                      horizontal: 10,
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: const [
-                        BoxShadow(blurRadius: 3, color: Colors.black26),
-                      ],
+                      borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
                       part['availability'].toString(),
@@ -64,11 +80,13 @@ class ComponentCard extends StatelessWidget {
             ),
           ),
 
+          /// DETAILS
           Padding(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                /// NAME
                 Text(
                   part['part_name'] ?? "",
                   maxLines: 1,
@@ -79,26 +97,44 @@ class ComponentCard extends StatelessWidget {
                   ),
                 ),
 
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
 
+                /// CATEGORY
+                Text(
+                  part['category'] ?? "",
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+                ),
+
+                const SizedBox(height: 4),
+
+                /// BOX NUMBER
                 Text(
                   "Box: ${part['box_no']}",
                   style: const TextStyle(
-                    color: Colors.blue,
+                    fontSize: 13,
                     fontWeight: FontWeight.w500,
+                    color: Colors.blue,
                   ),
                 ),
               ],
             ),
           ),
 
+          /// EDIT CONTROLS
           if (!readOnly)
-            Align(
-              alignment: Alignment.bottomRight,
-              child: IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red),
-                onPressed: onDelete,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.orange),
+                  onPressed: onEdit,
+                ),
+
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: onDelete,
+                ),
+              ],
             ),
         ],
       ),

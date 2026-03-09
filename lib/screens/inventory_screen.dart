@@ -4,6 +4,7 @@ import '../services/sync_service.dart';
 import '../widgets/component_card.dart';
 import '../widgets/search_bar.dart';
 import '../widgets/add_component_dialog.dart';
+import '../screens/add_part_screen.dart';
 import 'qr_scanner_screen.dart';
 
 class InventoryScreen extends StatefulWidget {
@@ -29,12 +30,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
     super.initState();
     readOnly = widget.readOnly;
     initializeData();
-    checkConnection();
   }
 
   Future<void> initializeData() async {
     await SyncService().pullCloudParts();
     await loadParts();
+    await checkConnection();
   }
 
   Future<void> loadParts() async {
@@ -68,8 +69,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
     });
   }
 
-  void scanBox() {
-    Navigator.push(
+  Future<void> scanBox() async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => QRScannerScreen(
@@ -94,38 +95,49 @@ class _InventoryScreenState extends State<InventoryScreen> {
     });
   }
 
-  void teacherLogin() {
+  void toggleEditMode() {
+    if (!readOnly) {
+      setState(() {
+        readOnly = true;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Edit Mode OFF")));
+
+      return;
+    }
+
     final controller = TextEditingController();
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text("Teacher Login"),
+          title: const Text("Enter Teacher Password"),
+
           content: TextField(
             controller: controller,
             obscureText: true,
             decoration: const InputDecoration(labelText: "Password"),
           ),
+
           actions: [
             TextButton(
               onPressed: () {
                 if (controller.text == "aTal@2026") {
                   setState(() {
-                    readOnly = !readOnly;
+                    readOnly = false;
                   });
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        readOnly ? "Teacher mode OFF" : "Teacher mode ON",
-                      ),
-                    ),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text("Edit Mode ON")));
                 }
 
                 Navigator.pop(context);
               },
+
               child: const Text("Login"),
             ),
           ],
@@ -146,6 +158,19 @@ class _InventoryScreenState extends State<InventoryScreen> {
     ).showSnackBar(const SnackBar(content: Text("Part Deleted")));
   }
 
+  Future<void> editPart(Map part) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => AddPartScreen(readOnly: false)),
+    );
+
+    await loadParts();
+  }
+
+  Future<void> refreshInventory() async {
+    await initializeData();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = isDarkMode ? ThemeData.dark() : ThemeData.light();
@@ -159,13 +184,18 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
           actions: [
             IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: refreshInventory,
+            ),
+
+            IconButton(
               icon: const Icon(Icons.qr_code_scanner),
               onPressed: scanBox,
             ),
 
             IconButton(
               icon: Icon(readOnly ? Icons.lock : Icons.lock_open),
-              onPressed: teacherLogin,
+              onPressed: toggleEditMode,
             ),
 
             IconButton(
@@ -215,8 +245,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         return ComponentCard(
                           part: part,
                           readOnly: readOnly,
+
                           onDelete: () {
                             deletePart(part['id']);
+                          },
+
+                          onEdit: () {
+                            editPart(part);
                           },
                         );
                       },
@@ -235,7 +270,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   );
 
                   await loadParts();
+                  await checkConnection();
                 },
+
                 child: const Icon(Icons.add),
               ),
       ),
