@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'database/database_helper.dart';
 import 'screens/inventory_screen.dart';
 
-Future<void> main() async {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
@@ -17,13 +17,30 @@ Future<void> main() async {
   runApp(MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  bool darkMode = false;
+
+  void toggleTheme() {
+    setState(() {
+      darkMode = !darkMode;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: "ATL Inventory",
-      theme: ThemeData(useMaterial3: true),
+
+      theme: ThemeData(
+        brightness: darkMode ? Brightness.dark : Brightness.light,
+      ),
+
       home: InventoryScreen(readOnly: true),
     );
   }

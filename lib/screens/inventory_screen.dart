@@ -21,11 +21,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   late bool readOnly;
 
+  bool isConnected = false;
+  bool isDarkMode = false;
+
   @override
   void initState() {
     super.initState();
     readOnly = widget.readOnly;
     initializeData();
+    checkConnection();
   }
 
   Future<void> initializeData() async {
@@ -41,6 +45,26 @@ class _InventoryScreenState extends State<InventoryScreen> {
     setState(() {
       parts = data;
       filtered = data;
+    });
+  }
+
+  Future<void> checkConnection() async {
+    try {
+      await SyncService().pushLocalParts();
+
+      setState(() {
+        isConnected = true;
+      });
+    } catch (e) {
+      setState(() {
+        isConnected = false;
+      });
+    }
+  }
+
+  void toggleTheme() {
+    setState(() {
+      isDarkMode = !isDarkMode;
     });
   }
 
@@ -78,23 +102,25 @@ class _InventoryScreenState extends State<InventoryScreen> {
       builder: (context) {
         return AlertDialog(
           title: const Text("Teacher Login"),
-
           content: TextField(
             controller: controller,
             obscureText: true,
             decoration: const InputDecoration(labelText: "Password"),
           ),
-
           actions: [
             TextButton(
               onPressed: () {
                 if (controller.text == "aTal@2026") {
                   setState(() {
-                    readOnly = false;
+                    readOnly = !readOnly;
                   });
 
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Teacher mode enabled")),
+                    SnackBar(
+                      content: Text(
+                        readOnly ? "Teacher mode OFF" : "Teacher mode ON",
+                      ),
+                    ),
                   );
                 }
 
@@ -122,72 +148,97 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("ATL Inventory"),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.qr_code_scanner),
-            onPressed: scanBox,
-          ),
-          IconButton(icon: const Icon(Icons.lock), onPressed: teacherLogin),
-        ],
-      ),
+    final theme = isDarkMode ? ThemeData.dark() : ThemeData.light();
 
-      body: Column(
-        children: [
-          SearchBarWidget(onSearch: searchParts),
+    return Theme(
+      data: theme,
 
-          Expanded(
-            child: filtered.isEmpty
-                ? const Center(
-                    child: Text(
-                      "No components added",
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  )
-                : GridView.builder(
-                    padding: const EdgeInsets.all(12),
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text("ATL Inventory"),
 
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: 0.8,
-                        ),
-
-                    itemCount: filtered.length,
-
-                    itemBuilder: (context, index) {
-                      final part = filtered[index];
-
-                      return ComponentCard(
-                        part: part,
-                        readOnly: readOnly,
-                        onDelete: () {
-                          deletePart(part['id']);
-                        },
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
-
-      floatingActionButton: readOnly
-          ? null
-          : FloatingActionButton(
-              onPressed: () async {
-                await showDialog(
-                  context: context,
-                  builder: (context) => const AddComponentDialog(),
-                );
-
-                await loadParts();
-              },
-              child: const Icon(Icons.add),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.qr_code_scanner),
+              onPressed: scanBox,
             ),
+
+            IconButton(
+              icon: Icon(readOnly ? Icons.lock : Icons.lock_open),
+              onPressed: teacherLogin,
+            ),
+
+            IconButton(
+              icon: Icon(isDarkMode ? Icons.wb_sunny : Icons.nightlight_round),
+              onPressed: toggleTheme,
+            ),
+
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: Icon(
+                Icons.circle,
+                color: isConnected ? Colors.green : Colors.red,
+                size: 14,
+              ),
+            ),
+          ],
+        ),
+
+        body: Column(
+          children: [
+            SearchBarWidget(onSearch: searchParts),
+
+            Expanded(
+              child: filtered.isEmpty
+                  ? const Center(
+                      child: Text(
+                        "No components added",
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    )
+                  : GridView.builder(
+                      padding: const EdgeInsets.all(12),
+
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 0.8,
+                          ),
+
+                      itemCount: filtered.length,
+
+                      itemBuilder: (context, index) {
+                        final part = filtered[index];
+
+                        return ComponentCard(
+                          part: part,
+                          readOnly: readOnly,
+                          onDelete: () {
+                            deletePart(part['id']);
+                          },
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+
+        floatingActionButton: readOnly
+            ? null
+            : FloatingActionButton(
+                onPressed: () async {
+                  await showDialog(
+                    context: context,
+                    builder: (context) => const AddComponentDialog(),
+                  );
+
+                  await loadParts();
+                },
+                child: const Icon(Icons.add),
+              ),
+      ),
     );
   }
 }

@@ -16,61 +16,80 @@ class SyncService {
     );
 
     for (var part in parts) {
-      String imageUrl = '';
+      try {
+        String imageUrl = (part['image_url'] as String?) ?? '';
 
-      if (part['image_path'] != null && part['image_path'] != '') {
-        final file = File(part['image_path'] as String);
+        final imagePath = part['image_path'] as String?;
 
-        if (!await file.exists()) continue;
+        /// Upload image if exists
+        if (imagePath != null && imagePath.isNotEmpty) {
+          final file = File(imagePath);
 
-        final path = "parts/${part['id']}.jpg";
+          if (await file.exists()) {
+            final path = "parts/${part['id']}.jpg";
 
-        await supabase.storage.from('part-images').upload(path, file);
+            await supabase.storage
+                .from('part-images')
+                .upload(
+                  path,
+                  file,
+                  fileOptions: const FileOptions(upsert: true),
+                );
 
-        imageUrl = supabase.storage.from('part-images').getPublicUrl(path);
+            imageUrl = supabase.storage.from('part-images').getPublicUrl(path);
+          }
+        }
+
+        /// Push to Supabase
+        await supabase.from('parts').upsert({
+          'id': part['id'],
+          'serial_no': part['serial_no'],
+          'part_name': part['part_name'],
+          'category': part['category'],
+          'total_parts': part['total_parts'],
+          'current_count': part['current_count'],
+          'box_no': part['box_no'],
+          'availability': part['availability'],
+          'image_url': imageUrl,
+          'last_updated': part['last_updated'],
+        });
+
+        /// Mark synced locally
+        await db.update(
+          'parts',
+          {'sync_status': 1},
+          where: 'id=?',
+          whereArgs: [part['id']],
+        );
+      } catch (e) {
+        print("Sync error: $e");
       }
-
-      await supabase.from('parts').upsert({
-        'id': part['id'],
-        'serial_no': part['serial_no'],
-        'part_name': part['part_name'],
-        'category': part['category'],
-        'total_parts': part['total_parts'],
-        'current_count': part['current_count'],
-        'box_no': part['box_no'],
-        'availability': part['availability'],
-        'image_url': imageUrl,
-        'last_updated': part['last_updated'],
-      });
-
-      await db.update(
-        'parts',
-        {'sync_status': 1},
-        where: 'id=?',
-        whereArgs: [part['id']],
-      );
     }
   }
 
   Future<void> pullCloudParts() async {
     final db = await DatabaseHelper.instance.database;
 
-    final data = await supabase.from('parts').select();
+    try {
+      final data = await supabase.from('parts').select();
 
-    for (var part in data) {
-      await db.insert('parts', {
-        'id': part['id'],
-        'serial_no': part['serial_no'],
-        'part_name': part['part_name'],
-        'category': part['category'],
-        'total_parts': part['total_parts'],
-        'current_count': part['current_count'],
-        'box_no': part['box_no'],
-        'availability': part['availability'],
-        'image_path': '',
-        'last_updated': part['last_updated'],
-        'sync_status': 1,
-      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      for (var part in data) {
+        await db.insert('parts', {
+          'id': part['id'],
+          'serial_no': part['serial_no'],
+          'part_name': part['part_name'],
+          'category': part['category'],
+          'total_parts': part['total_parts'],
+          'current_count': part['current_count'],
+          'box_no': part['box_no'],
+          'availability': part['availability'],
+          'image_path': '',
+          'last_updated': part['last_updated'],
+          'sync_status': 1,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+    } catch (e) {
+      print("Cloud pull error: $e");
     }
   }
 }

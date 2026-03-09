@@ -64,37 +64,37 @@ class _AddPartScreenState extends State<AddPartScreen> {
       isSaving = true;
     });
 
-    final db = await DatabaseHelper.instance.database;
+    try {
+      final db = await DatabaseHelper.instance.database;
 
-    await db.insert('parts', {
-      'id': const Uuid().v4(),
-      'serial_no': serialController.text,
-      'part_name': nameController.text,
-      'category': categoryController.text,
-      'box_no': int.tryParse(boxController.text) ?? 0,
-      'total_parts': int.tryParse(totalController.text) ?? 0,
-      'current_count': availability,
-      'availability': availability,
-      'image_path': imageFile?.path ?? '',
-      'last_updated': DateTime.now().toIso8601String(),
-      'sync_status': 0,
-    });
+      await db.insert('parts', {
+        'id': const Uuid().v4(),
+        'serial_no': serialController.text,
+        'part_name': nameController.text,
+        'category': categoryController.text,
+        'box_no': int.tryParse(boxController.text) ?? 0,
+        'total_parts': int.tryParse(totalController.text) ?? 0,
+        'current_count': availability,
+        'availability': availability,
+        'image_path': imageFile?.path ?? '',
+        'last_updated': DateTime.now().toIso8601String(),
+        'sync_status': 0,
+      });
 
-    await SyncService().pushLocalParts();
+      SyncService().pushLocalParts();
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text("Part Added")));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Part Added")));
 
-    serialController.clear();
-    nameController.clear();
-    categoryController.clear();
-    boxController.clear();
-    totalController.clear();
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+    }
 
     setState(() {
-      availability = 0;
-      imageFile = null;
       isSaving = false;
     });
   }
