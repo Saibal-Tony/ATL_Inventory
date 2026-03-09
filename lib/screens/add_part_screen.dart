@@ -8,8 +8,9 @@ import '../services/sync_service.dart';
 
 class AddPartScreen extends StatefulWidget {
   final bool readOnly;
+  final Map<String, dynamic>? part;
 
-  const AddPartScreen({super.key, this.readOnly = false});
+  const AddPartScreen({super.key, this.readOnly = false, this.part});
 
   @override
   State<AddPartScreen> createState() => _AddPartScreenState();
@@ -29,6 +30,28 @@ class _AddPartScreenState extends State<AddPartScreen> {
   bool isSaving = false;
 
   final picker = ImagePicker();
+
+  bool get isEditing => widget.part != null;
+
+  @override
+  void initState() {
+    super.initState();
+
+    if (isEditing) {
+      final part = widget.part!;
+
+      serialController.text = part['serial_no'] ?? "";
+      nameController.text = part['part_name'] ?? "";
+      categoryController.text = part['category'] ?? "";
+      boxController.text = part['box_no']?.toString() ?? "";
+      totalController.text = part['total_parts']?.toString() ?? "";
+      availability = part['availability'] ?? 0;
+
+      if (part['image_path'] != null && part['image_path'] != '') {
+        imageFile = File(part['image_path']);
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -83,10 +106,7 @@ class _AddPartScreenState extends State<AddPartScreen> {
         availability = totalParts;
       }
 
-      final id = const Uuid().v4();
-
-      await db.insert('parts', {
-        'id': id,
+      final data = {
         'serial_no': serialController.text,
         'part_name': nameController.text,
         'category': categoryController.text,
@@ -97,13 +117,26 @@ class _AddPartScreenState extends State<AddPartScreen> {
         'image_path': imageFile?.path ?? '',
         'last_updated': DateTime.now().toIso8601String(),
         'sync_status': 0,
-      });
+      };
+
+      if (isEditing) {
+        await db.update(
+          'parts',
+          data,
+          where: 'id=?',
+          whereArgs: [widget.part!['id']],
+        );
+      } else {
+        final id = const Uuid().v4();
+
+        await db.insert('parts', {'id': id, ...data});
+      }
 
       await SyncService().pushLocalParts();
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Part Added")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(isEditing ? "Part Updated" : "Part Added")),
+      );
 
       Navigator.pop(context);
     } catch (e) {
@@ -138,7 +171,7 @@ class _AddPartScreenState extends State<AddPartScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Add Part")),
+      appBar: AppBar(title: Text(isEditing ? "Edit Part" : "Add Part")),
 
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -238,7 +271,7 @@ class _AddPartScreenState extends State<AddPartScreen> {
               ),
               child: isSaving
                   ? const CircularProgressIndicator()
-                  : const Text("Save Part"),
+                  : Text(isEditing ? "Update Part" : "Save Part"),
             ),
 
             const SizedBox(height: 10),

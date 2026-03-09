@@ -158,10 +158,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
     ).showSnackBar(const SnackBar(content: Text("Part Deleted")));
   }
 
-  Future<void> editPart(Map part) async {
+  Future<void> editPart(Map<String, dynamic> part) async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => AddPartScreen(readOnly: false)),
+      MaterialPageRoute(
+        builder: (_) => AddPartScreen(
+          readOnly: false,
+          part: Map<String, dynamic>.from(part),
+        ),
+      ),
     );
 
     await loadParts();
@@ -177,9 +182,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
     return Theme(
       data: theme,
-
       child: Scaffold(
         appBar: AppBar(
+          elevation: 2,
           title: const Text("ATL Inventory"),
 
           actions: [
@@ -222,18 +227,18 @@ class _InventoryScreenState extends State<InventoryScreen> {
               child: filtered.isEmpty
                   ? const Center(
                       child: Text(
-                        "No components added",
+                        "No components added yet",
                         style: TextStyle(fontSize: 16),
                       ),
                     )
                   : GridView.builder(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(14),
 
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 2,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
+                            crossAxisSpacing: 14,
+                            mainAxisSpacing: 14,
                             childAspectRatio: 0.8,
                           ),
 
@@ -263,6 +268,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
         floatingActionButton: readOnly
             ? null
             : FloatingActionButton(
+                elevation: 6,
+
                 onPressed: () async {
                   await showDialog(
                     context: context,

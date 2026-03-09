@@ -22,13 +22,15 @@ class ComponentCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? Colors.grey.shade800 : Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        color: isDark ? const Color.fromARGB(255, 62, 62, 62) : Colors.white,
+        borderRadius: BorderRadius.circular(26),
         boxShadow: [
           BoxShadow(
-            blurRadius: 6,
-            color: Colors.black.withOpacity(0.15),
-            offset: const Offset(0, 3),
+            blurRadius: isDark ? 12 : 6,
+            color: isDark
+                ? Colors.white.withOpacity(0.12)
+                : Colors.black.withOpacity(0.15),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -42,7 +44,7 @@ class ComponentCard extends StatelessWidget {
               children: [
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(24),
+                    top: Radius.circular(26),
                   ),
                   child: SizedBox.expand(
                     child: (imagePath != null && imagePath != '')
@@ -54,24 +56,26 @@ class ComponentCard extends StatelessWidget {
                   ),
                 ),
 
-                /// STOCK COUNT
+                /// AVAILABILITY BUBBLE
                 Positioned(
-                  top: 8,
-                  right: 8,
+                  top: 10,
+                  right: 10,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
+                      horizontal: 12,
+                      vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
+                      color: isDark ? Colors.black : Colors.white,
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(color: Colors.black, width: 1.2),
                     ),
                     child: Text(
                       part['availability'].toString(),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
+                        color: isDark ? Colors.white : Colors.black,
                       ),
                     ),
                   ),
@@ -80,9 +84,18 @@ class ComponentCard extends StatelessWidget {
             ),
           ),
 
-          /// DETAILS
-          Padding(
-            padding: const EdgeInsets.all(12),
+          /// DETAILS BOX
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: isDark ? Colors.grey.shade700 : Colors.black,
+                  width: 1,
+                ),
+              ),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -97,22 +110,25 @@ class ComponentCard extends StatelessWidget {
                   ),
                 ),
 
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
 
                 /// CATEGORY
                 Text(
                   part['category'] ?? "",
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                  ),
                 ),
 
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
 
                 /// BOX NUMBER
                 Text(
                   "Box: ${part['box_no']}",
                   style: const TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                     color: Colors.blue,
                   ),
                 ),
@@ -122,19 +138,26 @@ class ComponentCard extends StatelessWidget {
 
           /// EDIT CONTROLS
           if (!readOnly)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.orange),
-                  onPressed: onEdit,
-                ),
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.edit,
+                      color: Colors.orange,
+                      size: 20,
+                    ),
+                    onPressed: onEdit,
+                  ),
 
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: onDelete,
-                ),
-              ],
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                    onPressed: onDelete,
+                  ),
+                ],
+              ),
             ),
         ],
       ),
