@@ -73,8 +73,8 @@ A modern Flutter-based inventory management application designed for ATL (Atal T
 > Displays all available components in a beautiful grid layout.
 
 <p align="center">
-  <img src="assets/screenshots/home_dark.png" width="280"/>
-  <img src="assets/screenshots/home_light.png" width="280"/>
+  <img src="lib/assets/screenshots/home_dark.png" width="280"/>
+  <img src="lib/assets/screenshots/home_light.png" width="280"/>
 </p>
 
 ### Features Visible
