@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![ATL Inventory Banner](assets/banner.png)
+![ATL Inventory Banner](lib/assets/banner.png)
 
 ### Smart Inventory Management for ATL Labs
 
