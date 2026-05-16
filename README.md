@@ -6,8 +6,6 @@
   <img src="lib/assets/banner.png" width="450"/>
 </p>
 
-![ATL Inventory Banner]
-
 ### Smart Inventory Management for ATL Labs
 
 A modern Flutter-based inventory management application designed for ATL (Atal Tinkering Lab) environments to efficiently organize, manage, and track electronic components with both offline and cloud synchronization support.
