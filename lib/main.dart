@@ -5,11 +5,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/splash_screen.dart';
 
 // ─── Supabase credentials ─────────────────────────────────────────────────────
-const kSupabaseUrl = 'https://gdnbjcoxtfcvmfnetkxp.supabase.co';
+const kSupabaseUrl = 'https://prtdtgxrflklxribomoy.supabase.co';
 const kSupabaseAnonKey =
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
-    '.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdkbmJqY294dGZjdm1mbmV0a3hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4NTgwNzcsImV4cCI6MjA4NjQzNDA3N30'
-    '.QxsYV0qd_HleCwq1OAeufUt0M9NoCHIlPiTYoWGyE2w';
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBydGR0Z3hyZmxrbHhyaWJvbW95Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzIxNzEsImV4cCI6MjA5Njg0ODE3MX0.NhOd5liN3rU-3OI6rFMZxXetBHe_3HSmT1t-POoxDE0';
 
 // ─── Global theme notifier (access from anywhere) ─────────────────────────────
 final themeNotifier = ValueNotifier<ThemeMode>(ThemeMode.dark);
