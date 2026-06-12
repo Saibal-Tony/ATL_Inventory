@@ -4,14 +4,17 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/splash_screen.dart';
 
-// ─── Supabase credentials ────────────────────────────────────────────────────
+// ─── Supabase credentials ─────────────────────────────────────────────────────
 const kSupabaseUrl = 'https://gdnbjcoxtfcvmfnetkxp.supabase.co';
 const kSupabaseAnonKey =
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
     '.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdkbmJqY294dGZjdm1mbmV0a3hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4NTgwNzcsImV4cCI6MjA4NjQzNDA3N30'
     '.QxsYV0qd_HleCwq1OAeufUt0M9NoCHIlPiTYoWGyE2w';
 
-// ─── Design tokens ────────────────────────────────────────────────────────────
+// ─── Global theme notifier (access from anywhere) ─────────────────────────────
+final themeNotifier = ValueNotifier<ThemeMode>(ThemeMode.dark);
+
+// ─── Dark palette ─────────────────────────────────────────────────────────────
 class AppColors {
   static const background = Color(0xFF0D1117);
   static const surface = Color(0xFF161B27);
@@ -24,6 +27,19 @@ class AppColors {
   static const textMuted = Color(0xFF8892A4);
 }
 
+// ─── Light palette ────────────────────────────────────────────────────────────
+class AppColorsLight {
+  static const background = Color(0xFFF4F6FA);
+  static const surface = Color(0xFFFFFFFF);
+  static const card = Color(0xFFEDF0F7);
+  static const border = Color(0xFFDDE1EA);
+  static const accent = Color(0xFF009E7F);
+  static const danger = Color(0xFFE53935);
+  static const warning = Color(0xFFF59E0B);
+  static const textPrimary = Color(0xFF1A1F2E);
+  static const textMuted = Color(0xFF64748B);
+}
+
 // ─── Entry point ─────────────────────────────────────────────────────────────
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,7 +48,6 @@ void main() async {
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: AppColors.background,
     ),
   );
 
@@ -46,93 +61,130 @@ class ATLInventoryApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final base = ThemeData.dark();
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'ATL Inventory',
-      theme: base.copyWith(
-        scaffoldBackgroundColor: AppColors.background,
-        colorScheme: const ColorScheme.dark(
-          primary: AppColors.accent,
-          surface: AppColors.surface,
-          error: AppColors.danger,
-        ),
-        textTheme: GoogleFonts.interTextTheme(base.textTheme).apply(
-          bodyColor: AppColors.textPrimary,
-          displayColor: AppColors.textPrimary,
-        ),
-        appBarTheme: AppBarTheme(
-          backgroundColor: AppColors.surface,
-          elevation: 0,
-          centerTitle: false,
-          iconTheme: const IconThemeData(color: AppColors.textMuted),
-          titleTextStyle: GoogleFonts.inter(
-            color: AppColors.textPrimary,
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (_, mode, __) {
+        final isDark = mode == ThemeMode.dark;
+        SystemChrome.setSystemUIOverlayStyle(
+          SystemUiOverlayStyle(
+            statusBarIconBrightness: isDark
+                ? Brightness.light
+                : Brightness.dark,
+            systemNavigationBarColor: isDark
+                ? AppColors.background
+                : AppColorsLight.background,
           ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: AppColors.card,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.border),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.border),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.accent, width: 1.5),
-          ),
-          labelStyle: const TextStyle(color: AppColors.textMuted),
-          hintStyle: const TextStyle(color: AppColors.textMuted),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.accent,
-            foregroundColor: AppColors.background,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-            textStyle: GoogleFonts.inter(
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
-            ),
-          ),
-        ),
-        outlinedButtonTheme: OutlinedButtonThemeData(
-          style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.textMuted,
-            side: const BorderSide(color: AppColors.border),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-            textStyle: GoogleFonts.inter(
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
-            ),
-          ),
-        ),
-        dividerColor: AppColors.border,
-        snackBarTheme: SnackBarThemeData(
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          backgroundColor: AppColors.card,
-          contentTextStyle: GoogleFonts.inter(color: AppColors.textPrimary),
+        );
+
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'ATL Inventory',
+          themeMode: mode,
+          theme: _buildTheme(dark: false),
+          darkTheme: _buildTheme(dark: true),
+          home: const SplashScreen(),
+        );
+      },
+    );
+  }
+
+  ThemeData _buildTheme({required bool dark}) {
+    final bg = dark ? AppColors.background : AppColorsLight.background;
+    final surface = dark ? AppColors.surface : AppColorsLight.surface;
+    final cardC = dark ? AppColors.card : AppColorsLight.card;
+    final accent = dark ? AppColors.accent : AppColorsLight.accent;
+    final border = dark ? AppColors.border : AppColorsLight.border;
+    final txtP = dark ? AppColors.textPrimary : AppColorsLight.textPrimary;
+    final txtM = dark ? AppColors.textMuted : AppColorsLight.textMuted;
+    final danger = dark ? AppColors.danger : AppColorsLight.danger;
+
+    final base = dark ? ThemeData.dark() : ThemeData.light();
+
+    return base.copyWith(
+      scaffoldBackgroundColor: bg,
+      colorScheme: ColorScheme(
+        brightness: dark ? Brightness.dark : Brightness.light,
+        primary: accent,
+        onPrimary: dark ? AppColors.background : Colors.white,
+        secondary: accent,
+        onSecondary: dark ? AppColors.background : Colors.white,
+        error: danger,
+        onError: Colors.white,
+        surface: surface,
+        onSurface: txtP,
+      ),
+      textTheme: GoogleFonts.interTextTheme(
+        base.textTheme,
+      ).apply(bodyColor: txtP, displayColor: txtP),
+      appBarTheme: AppBarTheme(
+        backgroundColor: surface,
+        elevation: 0,
+        centerTitle: false,
+        iconTheme: IconThemeData(color: txtM),
+        titleTextStyle: GoogleFonts.inter(
+          color: txtP,
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
         ),
       ),
-      home: const SplashScreen(),
+      cardColor: cardC,
+      dividerColor: border,
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: cardC,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: accent, width: 1.5),
+        ),
+        labelStyle: TextStyle(color: txtM),
+        hintStyle: TextStyle(color: txtM),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: accent,
+          foregroundColor: dark ? AppColors.background : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          textStyle: GoogleFonts.inter(
+            fontWeight: FontWeight.w700,
+            fontSize: 14,
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: txtM,
+          side: BorderSide(color: border),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          textStyle: GoogleFonts.inter(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        backgroundColor: cardC,
+        contentTextStyle: GoogleFonts.inter(color: txtP),
+      ),
     );
   }
 }

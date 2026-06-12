@@ -29,37 +29,52 @@ class _InventoryScreenState extends State<InventoryScreen> {
   RealtimeChannel? _channel;
   final _searchCtrl = TextEditingController();
 
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  bool get _isDark => themeNotifier.value == ThemeMode.dark;
+
+  Color get _bg => _isDark ? AppColors.background : AppColorsLight.background;
+  Color get _surf => _isDark ? AppColors.surface : AppColorsLight.surface;
+  Color get _card => _isDark ? AppColors.card : AppColorsLight.card;
+  Color get _border => _isDark ? AppColors.border : AppColorsLight.border;
+  Color get _accent => _isDark ? AppColors.accent : AppColorsLight.accent;
+  Color get _danger => _isDark ? AppColors.danger : AppColorsLight.danger;
+  Color get _txtP =>
+      _isDark ? AppColors.textPrimary : AppColorsLight.textPrimary;
+  Color get _txtM => _isDark ? AppColors.textMuted : AppColorsLight.textMuted;
+
   // ── Lifecycle ──────────────────────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
     _isAdmin = widget.isAdmin;
     _setupRealtime();
+    themeNotifier.addListener(_onThemeChange);
   }
+
+  void _onThemeChange() => setState(() {});
 
   @override
   void dispose() {
+    themeNotifier.removeListener(_onThemeChange);
     _channel?.unsubscribe();
     _searchCtrl.dispose();
     super.dispose();
   }
 
-  // ── Real-time subscription — fires for INSERT / UPDATE / DELETE ───────────
+  // ── Real-time ──────────────────────────────────────────────────────────────
   void _setupRealtime() {
-    _fetchAll(); // initial load
-
+    _fetchAll();
     _channel = _supabase
         .channel('public:parts')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'parts',
-          callback: (_) => _fetchAll(), // re-fetch on any change
+          callback: (_) => _fetchAll(),
         )
         .subscribe();
   }
 
-  // ── Data fetching ──────────────────────────────────────────────────────────
   Future<void> _fetchAll() async {
     try {
       final data = await _supabase
@@ -92,13 +107,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   void _applyFilters() {
     var list = _all;
-
     if (_selectedCat != 'All') {
       list = list
           .where((p) => (p['category'] as String? ?? '').trim() == _selectedCat)
           .toList();
     }
-
     final q = _searchQuery.toLowerCase().trim();
     if (q.isNotEmpty) {
       list = list
@@ -111,7 +124,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
           )
           .toList();
     }
-
     _filtered = list;
   }
 
@@ -119,18 +131,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
   void _toggleAdmin() {
     if (_isAdmin) {
       setState(() => _isAdmin = false);
-      _snack('Admin mode off', color: AppColors.textMuted);
+      _snack('Admin mode off');
       return;
     }
-
     final ctrl = TextEditingController();
     bool obs = true;
-
     showDialog(
       context: context,
       builder: (dCtx) => StatefulBuilder(
         builder: (dCtx, setD) => Dialog(
-          backgroundColor: AppColors.surface,
+          backgroundColor: _surf,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
@@ -138,12 +148,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Admin Mode',
                   style: GoogleFonts.inter(
-                    color: AppColors.textPrimary,
+                    color: _txtP,
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
                   ),
@@ -153,7 +162,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   controller: ctrl,
                   obscureText: obs,
                   autofocus: true,
-                  style: const TextStyle(color: AppColors.textPrimary),
+                  style: TextStyle(color: _txtP),
                   decoration: InputDecoration(
                     labelText: 'Password',
                     suffixIcon: IconButton(
@@ -161,19 +170,19 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         obs
                             ? Icons.visibility_off_outlined
                             : Icons.visibility_outlined,
-                        color: AppColors.textMuted,
+                        color: _txtM,
                         size: 18,
                       ),
                       onPressed: () => setD(() => obs = !obs),
                     ),
                   ),
-                  onSubmitted: (_) => _submitAdminPassword(dCtx, ctrl.text),
+                  onSubmitted: (_) => _submitAdminPw(dCtx, ctrl.text),
                 ),
                 const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () => _submitAdminPassword(dCtx, ctrl.text),
+                    onPressed: () => _submitAdminPw(dCtx, ctrl.text),
                     child: const Text('Unlock'),
                   ),
                 ),
@@ -185,22 +194,22 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 
-  void _submitAdminPassword(BuildContext dCtx, String pw) {
+  void _submitAdminPw(BuildContext dCtx, String pw) {
     Navigator.pop(dCtx);
     if (pw == 'aTal@2026') {
       setState(() => _isAdmin = true);
-      _snack('Admin mode on', color: AppColors.accent);
+      _snack('Admin mode on ✓', color: _accent);
     } else {
-      _snack('Wrong password', color: AppColors.danger);
+      _snack('Wrong password', color: _danger);
     }
   }
 
-  // ── Delete part ────────────────────────────────────────────────────────────
+  // ── Delete ─────────────────────────────────────────────────────────────────
   void _confirmDelete(Map<String, dynamic> part) {
     showDialog(
       context: context,
       builder: (dCtx) => Dialog(
-        backgroundColor: AppColors.surface,
+        backgroundColor: _surf,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -211,20 +220,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: AppColors.danger.withOpacity(0.1),
+                  color: _danger.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.delete_outline,
-                  color: AppColors.danger,
-                  size: 26,
-                ),
+                child: Icon(Icons.delete_outline, color: _danger, size: 26),
               ),
               const SizedBox(height: 16),
               Text(
                 'Delete Component?',
                 style: GoogleFonts.inter(
-                  color: AppColors.textPrimary,
+                  color: _txtP,
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
                 ),
@@ -233,10 +238,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
               Text(
                 '"${part['part_name']}" will be removed permanently.',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  color: AppColors.textMuted,
-                  fontSize: 13,
-                ),
+                style: GoogleFonts.inter(color: _txtM, fontSize: 13),
               ),
               const SizedBox(height: 24),
               Row(
@@ -251,7 +253,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   Expanded(
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.danger,
+                        backgroundColor: _danger,
+                        foregroundColor: Colors.white,
                       ),
                       onPressed: () async {
                         Navigator.pop(dCtx);
@@ -259,7 +262,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             .from('parts')
                             .delete()
                             .eq('id', part['id']);
-                        // real-time subscription refreshes the list automatically
                       },
                       child: const Text('Delete'),
                     ),
@@ -276,11 +278,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
   void _snack(String msg, {Color? color}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          msg,
-          style: GoogleFonts.inter(color: AppColors.textPrimary),
-        ),
-        backgroundColor: color ?? AppColors.card,
+        content: Text(msg, style: GoogleFonts.inter(color: _txtP)),
+        backgroundColor: color ?? _card,
       ),
     );
   }
@@ -289,7 +288,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: _bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -304,16 +303,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
       ),
       floatingActionButton: _isAdmin
           ? FloatingActionButton(
-              backgroundColor: AppColors.accent,
-              foregroundColor: AppColors.background,
+              backgroundColor: _accent,
+              foregroundColor: _isDark ? AppColors.background : Colors.white,
               tooltip: 'Add component',
-              onPressed: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AddPartScreen()),
-                );
-                // real-time subscription refreshes — no manual reload needed
-              },
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AddPartScreen()),
+              ),
               child: const Icon(Icons.add),
             )
           : null,
@@ -322,11 +318,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   // ── Top bar ────────────────────────────────────────────────────────────────
   Widget _buildTopBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 14, 12, 6),
+    return Container(
+      color: _surf,
+      padding: const EdgeInsets.fromLTRB(18, 12, 8, 12),
       child: Row(
         children: [
-          // title + count
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -334,47 +330,39 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 Text(
                   'ATL Inventory',
                   style: GoogleFonts.inter(
-                    color: AppColors.textPrimary,
-                    fontSize: 22,
+                    color: _txtP,
+                    fontSize: 20,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.4,
                   ),
                 ),
-                const SizedBox(height: 2),
                 Text(
                   '${_filtered.length} component${_filtered.length != 1 ? 's' : ''}',
-                  style: GoogleFonts.inter(
-                    color: AppColors.textMuted,
-                    fontSize: 12,
-                  ),
+                  style: GoogleFonts.inter(color: _txtM, fontSize: 11),
                 ),
               ],
             ),
           ),
 
-          // admin badge
+          // Admin badge
           if (_isAdmin)
             Container(
-              margin: const EdgeInsets.only(right: 6),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              margin: const EdgeInsets.only(right: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: AppColors.accent.withOpacity(0.1),
+                color: _accent.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.accent.withOpacity(0.5)),
+                border: Border.all(color: _accent.withOpacity(0.4)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
-                    Icons.edit_outlined,
-                    color: AppColors.accent,
-                    size: 11,
-                  ),
-                  const SizedBox(width: 4),
+                  Icon(Icons.edit_outlined, color: _accent, size: 11),
+                  const SizedBox(width: 3),
                   Text(
                     'Admin',
                     style: GoogleFonts.inter(
-                      color: AppColors.accent,
+                      color: _accent,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
@@ -383,14 +371,22 @@ class _InventoryScreenState extends State<InventoryScreen> {
               ),
             ),
 
-          // QR scanner
+          // Theme toggle
           IconButton(
-            icon: const Icon(
-              Icons.qr_code_scanner_outlined,
-              color: AppColors.textMuted,
-              size: 22,
+            icon: Icon(
+              _isDark ? Icons.wb_sunny_outlined : Icons.nightlight_outlined,
+              color: _txtM,
+              size: 20,
             ),
-            tooltip: 'Scan box QR',
+            tooltip: 'Toggle theme',
+            onPressed: () {
+              themeNotifier.value = _isDark ? ThemeMode.light : ThemeMode.dark;
+            },
+          ),
+
+          // QR
+          IconButton(
+            icon: Icon(Icons.qr_code_scanner_outlined, color: _txtM, size: 20),
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(
@@ -407,25 +403,19 @@ class _InventoryScreenState extends State<InventoryScreen> {
             ),
           ),
 
-          // lock / unlock
+          // Lock
           IconButton(
             icon: Icon(
               _isAdmin ? Icons.lock_open_outlined : Icons.lock_outline,
-              color: _isAdmin ? AppColors.accent : AppColors.textMuted,
-              size: 22,
+              color: _isAdmin ? _accent : _txtM,
+              size: 20,
             ),
-            tooltip: _isAdmin ? 'Exit admin' : 'Admin login',
             onPressed: _toggleAdmin,
           ),
 
-          // logout
+          // Logout
           IconButton(
-            icon: const Icon(
-              Icons.logout_outlined,
-              color: AppColors.textMuted,
-              size: 22,
-            ),
-            tooltip: 'Switch role',
+            icon: Icon(Icons.logout_outlined, color: _txtM, size: 20),
             onPressed: () => Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -436,32 +426,24 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 
-  // ── Search bar ─────────────────────────────────────────────────────────────
+  // ── Search ─────────────────────────────────────────────────────────────────
   Widget _buildSearch() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
       child: TextField(
         controller: _searchCtrl,
-        style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+        style: TextStyle(color: _txtP, fontSize: 14),
         onChanged: (v) => setState(() {
           _searchQuery = v;
           _applyFilters();
         }),
         decoration: InputDecoration(
           hintText: 'Search by name, category, box no…',
-          hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
-          prefixIcon: const Icon(
-            Icons.search,
-            color: AppColors.textMuted,
-            size: 19,
-          ),
+          hintStyle: TextStyle(color: _txtM, fontSize: 13),
+          prefixIcon: Icon(Icons.search, color: _txtM, size: 19),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
-                  icon: const Icon(
-                    Icons.clear,
-                    color: AppColors.textMuted,
-                    size: 17,
-                  ),
+                  icon: Icon(Icons.clear, color: _txtM, size: 17),
                   onPressed: () => setState(() {
                     _searchQuery = '';
                     _searchCtrl.clear();
@@ -474,13 +456,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 
-  // ── Category chip row ──────────────────────────────────────────────────────
+  // ── Category chips ─────────────────────────────────────────────────────────
   Widget _buildCategoryChips() {
     return SizedBox(
       height: 34,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         itemCount: _categories.length,
         itemBuilder: (_, i) {
           final cat = _categories[i];
@@ -499,16 +481,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: sel ? AppColors.accent : AppColors.surface,
+                  color: sel ? _accent : _surf,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: sel ? AppColors.accent : AppColors.border,
-                  ),
+                  border: Border.all(color: sel ? _accent : _border),
                 ),
                 child: Text(
                   cat,
                   style: GoogleFonts.inter(
-                    color: sel ? AppColors.background : AppColors.textMuted,
+                    color: sel
+                        ? (_isDark ? AppColors.background : Colors.white)
+                        : _txtM,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -524,11 +506,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
   // ── Grid ───────────────────────────────────────────────────────────────────
   Widget _buildGrid() {
     if (_loading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          color: AppColors.accent,
-          strokeWidth: 2,
-        ),
+      return Center(
+        child: CircularProgressIndicator(color: _accent, strokeWidth: 2),
       );
     }
 
@@ -537,29 +516,19 @@ class _InventoryScreenState extends State<InventoryScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.inventory_2_outlined,
-              color: AppColors.textMuted,
-              size: 52,
-            ),
+            Icon(Icons.inventory_2_outlined, color: _txtM, size: 52),
             const SizedBox(height: 14),
             Text(
               _searchQuery.isNotEmpty
                   ? 'No results for "$_searchQuery"'
                   : 'No components yet',
-              style: GoogleFonts.inter(
-                color: AppColors.textMuted,
-                fontSize: 15,
-              ),
+              style: GoogleFonts.inter(color: _txtM, fontSize: 15),
             ),
             if (_isAdmin && _searchQuery.isEmpty) ...[
               const SizedBox(height: 8),
               Text(
                 'Tap + to add your first component',
-                style: GoogleFonts.inter(
-                  color: AppColors.textMuted,
-                  fontSize: 12,
-                ),
+                style: GoogleFonts.inter(color: _txtM, fontSize: 12),
               ),
             ],
           ],
@@ -568,17 +537,18 @@ class _InventoryScreenState extends State<InventoryScreen> {
     }
 
     return GridView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 96),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 0.76,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 0.82,
       ),
       itemCount: _filtered.length,
       itemBuilder: (_, i) => _PartCard(
         part: _filtered[i],
         isAdmin: _isAdmin,
+        isDark: _isDark,
         onEdit: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => AddPartScreen(part: _filtered[i])),
@@ -590,146 +560,175 @@ class _InventoryScreenState extends State<InventoryScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Part card
+//  Part Card — compact, no wasted space
 // ─────────────────────────────────────────────────────────────────────────────
 class _PartCard extends StatelessWidget {
   final Map<String, dynamic> part;
   final bool isAdmin;
+  final bool isDark;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const _PartCard({
     required this.part,
     required this.isAdmin,
+    required this.isDark,
     required this.onEdit,
     required this.onDelete,
   });
+
+  Color get _card => isDark ? AppColors.card : AppColorsLight.card;
+  Color get _border => isDark ? AppColors.border : AppColorsLight.border;
+  Color get _surf => isDark ? AppColors.surface : AppColorsLight.surface;
+  Color get _txtP =>
+      isDark ? AppColors.textPrimary : AppColorsLight.textPrimary;
+  Color get _txtM => isDark ? AppColors.textMuted : AppColorsLight.textMuted;
+  Color get _accent => isDark ? AppColors.accent : AppColorsLight.accent;
+  Color get _danger => isDark ? AppColors.danger : AppColorsLight.danger;
 
   @override
   Widget build(BuildContext context) {
     final total = (part['total_parts'] as num?)?.toInt() ?? 0;
     final avail = (part['availability'] as num?)?.toInt() ?? 0;
     final ratio = total > 0 ? (avail / total).clamp(0.0, 1.0) : 0.0;
-    final statusColor = ratio > 0.5
-        ? AppColors.accent
+
+    final Color statusColor = ratio > 0.5
+        ? _accent
         : ratio > 0.2
-        ? AppColors.warning
-        : AppColors.danger;
+        ? (isDark ? AppColors.warning : AppColorsLight.warning)
+        : _danger;
+
     final imageUrl = part['image_url'] as String?;
-    final boxNo = part['box_no'];
 
     return GestureDetector(
       onTap: isAdmin ? onEdit : null,
       child: Container(
         decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
+          color: _card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _border),
+          boxShadow: isDark
+              ? []
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Image ────────────────────────────────────────────────────────
+            // ── Image ────────────────────────────────────────────────
             SizedBox(
-              height: 108,
+              height: 100,
               width: double.infinity,
               child: imageUrl != null && imageUrl.isNotEmpty
                   ? Image.network(
                       imageUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _imagePlaceholder(),
+                      errorBuilder: (_, __, ___) => _placeholder(),
                     )
-                  : _imagePlaceholder(),
+                  : _placeholder(),
             ),
 
-            // ── Body ─────────────────────────────────────────────────────────
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Name
-                    Text(
-                      part['part_name'] ?? 'Unnamed',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        color: AppColors.textPrimary,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        height: 1.3,
-                      ),
+            // ── Info (tight, no Spacer) ───────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Name
+                  Text(
+                    part['part_name'] ?? 'Unnamed',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: _txtP,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      height: 1.3,
                     ),
+                  ),
 
-                    if (boxNo != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 3),
-                        child: Text(
-                          'Box $boxNo',
-                          style: GoogleFonts.inter(
-                            color: AppColors.textMuted,
-                            fontSize: 10.5,
-                          ),
-                        ),
-                      ),
+                  const SizedBox(height: 4),
 
-                    const Spacer(),
-
-                    // ── Availability row ──────────────────────────────────
-                    Row(
-                      children: [
-                        // Arc indicator (the signature element)
-                        SizedBox(
-                          width: 32,
-                          height: 32,
-                          child: CustomPaint(
-                            painter: _ArcPainter(ratio, statusColor),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
+                  // Category + box on same row
+                  Row(
+                    children: [
+                      if ((part['category'] as String? ?? '').isNotEmpty)
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '$avail',
-                                style: GoogleFonts.inter(
-                                  color: statusColor,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              Text(
-                                'of $total',
-                                style: GoogleFonts.inter(
-                                  color: AppColors.textMuted,
-                                  fontSize: 9.5,
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            part['category'],
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              color: _accent,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
+                      Text(
+                        'Box ${part['box_no'] ?? '-'}',
+                        style: GoogleFonts.inter(color: _txtM, fontSize: 10),
+                      ),
+                    ],
+                  ),
 
-                        // Admin action buttons
-                        if (isAdmin) ...[
-                          _miniBtn(
-                            icon: Icons.edit_outlined,
-                            color: AppColors.accent,
-                            onTap: onEdit,
-                          ),
-                          const SizedBox(width: 4),
-                          _miniBtn(
-                            icon: Icons.delete_outline,
-                            color: AppColors.danger,
-                            onTap: onDelete,
-                          ),
-                        ],
+                  const SizedBox(height: 10),
+
+                  // Availability row
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 30,
+                        height: 30,
+                        child: CustomPaint(
+                          painter: _ArcPainter(ratio, statusColor, _border),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '$avail',
+                              style: GoogleFonts.inter(
+                                color: statusColor,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            Text(
+                              'of $total',
+                              style: GoogleFonts.inter(
+                                color: _txtM,
+                                fontSize: 9.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (isAdmin) ...[
+                        _miniBtn(
+                          icon: Icons.edit_outlined,
+                          color: _accent,
+                          onTap: onEdit,
+                        ),
+                        const SizedBox(width: 4),
+                        _miniBtn(
+                          icon: Icons.delete_outline,
+                          color: _danger,
+                          onTap: onDelete,
+                        ),
                       ],
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ],
@@ -738,18 +737,10 @@ class _PartCard extends StatelessWidget {
     );
   }
 
-  Widget _imagePlaceholder() {
-    return Container(
-      color: AppColors.surface,
-      child: const Center(
-        child: Icon(
-          Icons.memory_outlined,
-          color: AppColors.textMuted,
-          size: 34,
-        ),
-      ),
-    );
-  }
+  Widget _placeholder() => Container(
+    color: _surf,
+    child: Center(child: Icon(Icons.memory_outlined, color: _txtM, size: 32)),
+  );
 
   Widget _miniBtn({
     required IconData icon,
@@ -772,20 +763,21 @@ class _PartCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Arc painter — circular progress ring showing availability ratio
+//  Arc painter — passes border color explicitly, handles ratio=1.0
 // ─────────────────────────────────────────────────────────────────────────────
 class _ArcPainter extends CustomPainter {
   final double ratio;
   final Color color;
-  const _ArcPainter(this.ratio, this.color);
+  final Color bgColor;
+  const _ArcPainter(this.ratio, this.color, this.bgColor);
 
   @override
   void paint(Canvas canvas, Size size) {
     final c = Offset(size.width / 2, size.height / 2);
-    final r = size.width / 2 - 3;
+    final r = size.width / 2 - 2.5;
 
     final bgPaint = Paint()
-      ..color = AppColors.border
+      ..color = bgColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round;
@@ -796,7 +788,6 @@ class _ArcPainter extends CustomPainter {
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round;
 
-    // Background ring
     canvas.drawArc(
       Rect.fromCircle(center: c, radius: r),
       -math.pi / 2,
@@ -805,12 +796,13 @@ class _ArcPainter extends CustomPainter {
       bgPaint,
     );
 
-    // Foreground arc
     if (ratio > 0) {
+      // cap at 0.999 to avoid full-circle rendering glitch
+      final sweep = 2 * math.pi * ratio.clamp(0.0, 0.999);
       canvas.drawArc(
         Rect.fromCircle(center: c, radius: r),
         -math.pi / 2,
-        2 * math.pi * ratio,
+        sweep,
         false,
         fgPaint,
       );

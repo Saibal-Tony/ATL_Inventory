@@ -72,13 +72,19 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? AppColors.background : AppColorsLight.background;
+    final accent = isDark ? AppColors.accent : AppColorsLight.accent;
+    final txtP = isDark ? AppColors.textPrimary : AppColorsLight.textPrimary;
+    final surface = isDark ? AppColors.surface : AppColorsLight.surface;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: bg,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // ── Glowing logo ──────────────────────────────────────────────
+            // ── Logo with glow ring ───────────────────────────────────────
             ScaleTransition(
               scale: _logoScale,
               child: FadeTransition(
@@ -86,17 +92,15 @@ class _SplashScreenState extends State<SplashScreen>
                 child: AnimatedBuilder(
                   animation: _logoCtrl,
                   builder: (_, child) => Container(
-                    width: 104,
-                    height: 104,
+                    width: 108,
+                    height: 108,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppColors.surface,
-                      border: Border.all(color: AppColors.accent, width: 1.5),
+                      color: surface,
+                      border: Border.all(color: accent, width: 1.5),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.accent.withOpacity(
-                            0.35 * _logoCtrl.value,
-                          ),
+                          color: accent.withOpacity(0.35 * _logoCtrl.value),
                           blurRadius: 36,
                           spreadRadius: 4,
                         ),
@@ -106,8 +110,9 @@ class _SplashScreenState extends State<SplashScreen>
                   ),
                   child: ClipOval(
                     child: Image.asset(
-                      'lib/assets/logo.png',
+                      'lib/assets/logo.jpg',
                       fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _fallbackLogo(accent),
                     ),
                   ),
                 ),
@@ -116,7 +121,7 @@ class _SplashScreenState extends State<SplashScreen>
 
             const SizedBox(height: 28),
 
-            // ── Title + subtitle ──────────────────────────────────────────
+            // ── Title ─────────────────────────────────────────────────────
             SlideTransition(
               position: _textSlide,
               child: FadeTransition(
@@ -126,7 +131,7 @@ class _SplashScreenState extends State<SplashScreen>
                     Text(
                       'ATL Inventory',
                       style: GoogleFonts.inter(
-                        color: AppColors.textPrimary,
+                        color: txtP,
                         fontSize: 30,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.5,
@@ -136,7 +141,7 @@ class _SplashScreenState extends State<SplashScreen>
                     Text(
                       'ATAL TINKERING LAB',
                       style: GoogleFonts.inter(
-                        color: AppColors.accent,
+                        color: accent,
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 3,
@@ -147,6 +152,20 @@ class _SplashScreenState extends State<SplashScreen>
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _fallbackLogo(Color accent) {
+    return Center(
+      child: Text(
+        'ATL',
+        style: GoogleFonts.inter(
+          color: accent,
+          fontSize: 26,
+          fontWeight: FontWeight.w900,
+          letterSpacing: -1,
         ),
       ),
     );
