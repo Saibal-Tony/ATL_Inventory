@@ -209,17 +209,17 @@ class LoginScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     Container(
-                      width: 92,
-                      height: 92,
+                      width: 120,
+                      height: 120,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: surface,
-                        border: Border.all(color: accent, width: 1.5),
+                        border: Border.all(color: accent, width: 2),
                         boxShadow: [
                           BoxShadow(
-                            color: accent.withOpacity(0.2),
-                            blurRadius: 24,
-                            spreadRadius: 2,
+                            color: accent.withOpacity(0.25),
+                            blurRadius: 32,
+                            spreadRadius: 3,
                           ),
                         ],
                       ),

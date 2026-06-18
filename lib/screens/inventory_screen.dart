@@ -320,35 +320,83 @@ class _InventoryScreenState extends State<InventoryScreen> {
   Widget _buildTopBar() {
     return Container(
       color: _surf,
-      padding: const EdgeInsets.fromLTRB(18, 12, 8, 12),
+      padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          // ── Logo ────────────────────────────────────────────────────────
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: _accent, width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: _accent.withOpacity(0.18),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: ClipOval(
+              child: Image.asset(
+                'lib/assets/logo.jpg',
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  color: _card,
+                  child: Center(
+                    child: Text(
+                      'ATL',
+                      style: GoogleFonts.inter(
+                        color: _accent,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 10),
+
+          // ── App name + count ────────────────────────────────────────────
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'ATL Inventory',
-                  style: GoogleFonts.inter(
-                    color: _txtP,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.4,
+                // "ATL" on first line, "Inventory" on second — both bold
+                RichText(
+                  text: TextSpan(
+                    style: GoogleFonts.inter(
+                      color: _txtP,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
+                      height: 1.1,
+                    ),
+                    children: const [
+                      TextSpan(text: 'ATL\n'),
+                      TextSpan(text: 'Inventory'),
+                    ],
                   ),
                 ),
+                const SizedBox(height: 2),
                 Text(
                   '${_filtered.length} component${_filtered.length != 1 ? 's' : ''}',
-                  style: GoogleFonts.inter(color: _txtM, fontSize: 11),
+                  style: GoogleFonts.inter(color: _txtM, fontSize: 10.5),
                 ),
               ],
             ),
           ),
 
-          // Admin badge
+          // ── Admin badge ─────────────────────────────────────────────────
           if (_isAdmin)
             Container(
-              margin: const EdgeInsets.only(right: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              margin: const EdgeInsets.only(right: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
               decoration: BoxDecoration(
                 color: _accent.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(20),
@@ -357,13 +405,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.edit_outlined, color: _accent, size: 11),
+                  Icon(Icons.edit_outlined, color: _accent, size: 10),
                   const SizedBox(width: 3),
                   Text(
                     'Admin',
                     style: GoogleFonts.inter(
                       color: _accent,
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -371,22 +419,22 @@ class _InventoryScreenState extends State<InventoryScreen> {
               ),
             ),
 
-          // Theme toggle
+          // ── Theme toggle ────────────────────────────────────────────────
           IconButton(
             icon: Icon(
               _isDark ? Icons.wb_sunny_outlined : Icons.nightlight_outlined,
               color: _txtM,
-              size: 20,
+              size: 19,
             ),
             tooltip: 'Toggle theme',
-            onPressed: () {
-              themeNotifier.value = _isDark ? ThemeMode.light : ThemeMode.dark;
-            },
+            onPressed: () => themeNotifier.value = _isDark
+                ? ThemeMode.light
+                : ThemeMode.dark,
           ),
 
-          // QR
+          // ── QR scanner ──────────────────────────────────────────────────
           IconButton(
-            icon: Icon(Icons.qr_code_scanner_outlined, color: _txtM, size: 20),
+            icon: Icon(Icons.qr_code_scanner_outlined, color: _txtM, size: 19),
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(
@@ -403,19 +451,19 @@ class _InventoryScreenState extends State<InventoryScreen> {
             ),
           ),
 
-          // Lock
+          // ── Admin lock ──────────────────────────────────────────────────
           IconButton(
             icon: Icon(
               _isAdmin ? Icons.lock_open_outlined : Icons.lock_outline,
               color: _isAdmin ? _accent : _txtM,
-              size: 20,
+              size: 19,
             ),
             onPressed: _toggleAdmin,
           ),
 
-          // Logout
+          // ── Logout ──────────────────────────────────────────────────────
           IconButton(
-            icon: Icon(Icons.logout_outlined, color: _txtM, size: 20),
+            icon: Icon(Icons.logout_outlined, color: _txtM, size: 19),
             onPressed: () => Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -542,7 +590,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         crossAxisCount: 2,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
-        childAspectRatio: 0.82,
+        childAspectRatio: 0.72,
       ),
       itemCount: _filtered.length,
       itemBuilder: (_, i) => _PartCard(
@@ -622,89 +670,101 @@ class _PartCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ── Image ────────────────────────────────────────────────
-            SizedBox(
-              height: 100,
-              width: double.infinity,
-              child: imageUrl != null && imageUrl.isNotEmpty
-                  ? Image.network(
-                      imageUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _placeholder(),
-                    )
-                  : _placeholder(),
-            ),
-
-            // ── Info (tight, no Spacer) ───────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Name
-                  Text(
-                    part['part_name'] ?? 'Unnamed',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      color: _txtP,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      height: 1.3,
+            Stack(
+              children: [
+                SizedBox(
+                  height: 120,
+                  width: double.infinity,
+                  child: imageUrl != null && imageUrl.isNotEmpty
+                      ? Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _placeholder(),
+                        )
+                      : _placeholder(),
+                ),
+                // condition dot top-right
+                if ((part['condition'] as String?) != null &&
+                    part['condition'] != 'Good')
+                  Positioned(
+                    top: 7,
+                    right: 7,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: part['condition'] == 'Damaged'
+                            ? _danger.withOpacity(0.85)
+                            : const Color(0xFFFFB300).withOpacity(0.85),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        part['condition'],
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ),
+              ],
+            ),
 
-                  const SizedBox(height: 4),
-
-                  // Category + box on same row
-                  Row(
-                    children: [
-                      if ((part['category'] as String? ?? '').isNotEmpty)
-                        Expanded(
-                          child: Text(
-                            part['category'],
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.inter(
-                              color: _accent,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                            ),
+            // ── Info section — fills remaining space ──────────────────
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Name + category + box
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          part['part_name'] ?? 'Unnamed',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            color: _txtP,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            height: 1.25,
                           ),
                         ),
-                      Text(
-                        'Box ${part['box_no'] ?? '-'}',
-                        style: GoogleFonts.inter(color: _txtM, fontSize: 10),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  // Availability row
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: 30,
-                        height: 30,
-                        child: CustomPaint(
-                          painter: _ArcPainter(ratio, statusColor, _border),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        const SizedBox(height: 5),
+                        Row(
                           children: [
-                            Text(
-                              '$avail',
-                              style: GoogleFonts.inter(
-                                color: statusColor,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
+                            if ((part['category'] as String? ?? '')
+                                .isNotEmpty) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 1.5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _accent.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  part['category'],
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
+                                    color: _accent,
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ),
-                            ),
+                              const SizedBox(width: 5),
+                            ],
                             Text(
-                              'of $total',
+                              'Box ${part['box_no'] ?? '-'}',
                               style: GoogleFonts.inter(
                                 color: _txtM,
                                 fontSize: 9.5,
@@ -712,23 +772,59 @@ class _PartCard extends StatelessWidget {
                             ),
                           ],
                         ),
-                      ),
-                      if (isAdmin) ...[
-                        _miniBtn(
-                          icon: Icons.edit_outlined,
-                          color: _accent,
-                          onTap: onEdit,
-                        ),
-                        const SizedBox(width: 4),
-                        _miniBtn(
-                          icon: Icons.delete_outline,
-                          color: _danger,
-                          onTap: onDelete,
-                        ),
                       ],
-                    ],
-                  ),
-                ],
+                    ),
+
+                    // Availability row — always at bottom
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: 32,
+                          height: 32,
+                          child: CustomPaint(
+                            painter: _ArcPainter(ratio, statusColor, _border),
+                          ),
+                        ),
+                        const SizedBox(width: 7),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '$avail / $total',
+                                style: GoogleFonts.inter(
+                                  color: statusColor,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              Text(
+                                'available',
+                                style: GoogleFonts.inter(
+                                  color: _txtM,
+                                  fontSize: 9,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (isAdmin) ...[
+                          _miniBtn(
+                            icon: Icons.edit_outlined,
+                            color: _accent,
+                            onTap: onEdit,
+                          ),
+                          const SizedBox(width: 4),
+                          _miniBtn(
+                            icon: Icons.delete_outline,
+                            color: _danger,
+                            onTap: onDelete,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ],

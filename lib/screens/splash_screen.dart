@@ -92,17 +92,17 @@ class _SplashScreenState extends State<SplashScreen>
                 child: AnimatedBuilder(
                   animation: _logoCtrl,
                   builder: (_, child) => Container(
-                    width: 108,
-                    height: 108,
+                    width: 130,
+                    height: 130,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: surface,
-                      border: Border.all(color: accent, width: 1.5),
+                      border: Border.all(color: accent, width: 2),
                       boxShadow: [
                         BoxShadow(
-                          color: accent.withOpacity(0.35 * _logoCtrl.value),
-                          blurRadius: 36,
-                          spreadRadius: 4,
+                          color: accent.withOpacity(0.4 * _logoCtrl.value),
+                          blurRadius: 42,
+                          spreadRadius: 6,
                         ),
                       ],
                     ),
