@@ -24,8 +24,8 @@ Students browse in real time. Admins add, edit, and delete — changes reflect i
 
 ## Screenshots
 
-| Splash | Login | Inventory | Add Component |
-|--------|-------|-----------|---------------|
+|   Splash  |   Login   |  Inventory | Add Component |
+|-----------|-----------|------------|---------------|
 | ![Splash](screenshots/splash.png) | ![Login](screenshots/login.png) | ![Inventory](screenshots/inventory.png) | ![Add](screenshots/add.png) |
 
 ---
