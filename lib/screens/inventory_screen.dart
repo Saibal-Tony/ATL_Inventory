@@ -590,7 +590,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         crossAxisCount: 2,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
-        childAspectRatio: 0.72,
+        childAspectRatio: 0.85,
       ),
       itemCount: _filtered.length,
       itemBuilder: (_, i) => _PartCard(
@@ -673,7 +673,7 @@ class _PartCard extends StatelessWidget {
             Stack(
               children: [
                 SizedBox(
-                  height: 120,
+                  height: 100,
                   width: double.infinity,
                   child: imageUrl != null && imageUrl.isNotEmpty
                       ? Image.network(
