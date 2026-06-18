@@ -590,7 +590,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         crossAxisCount: 2,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
-        childAspectRatio: 0.85,
+        childAspectRatio: 0.78,
       ),
       itemCount: _filtered.length,
       itemBuilder: (_, i) => _PartCard(
@@ -673,7 +673,7 @@ class _PartCard extends StatelessWidget {
             Stack(
               children: [
                 SizedBox(
-                  height: 100,
+                  height: 130,
                   width: double.infinity,
                   child: imageUrl != null && imageUrl.isNotEmpty
                       ? Image.network(
@@ -716,7 +716,7 @@ class _PartCard extends StatelessWidget {
             // ── Info section — fills remaining space ──────────────────
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                padding: const EdgeInsets.fromLTRB(10, 5, 10, 5),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -736,7 +736,7 @@ class _PartCard extends StatelessWidget {
                             height: 1.25,
                           ),
                         ),
-                        const SizedBox(height: 5),
+                        const SizedBox(height: 3),
                         Row(
                           children: [
                             if ((part['category'] as String? ?? '')

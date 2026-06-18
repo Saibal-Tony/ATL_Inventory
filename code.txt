@@ -1,3 +1,9 @@
+# To run the flutter
 flutter clean
 flutter pub get
 flutter run
+
+# To build the app
+flutter build apk --release 
+xcopy build\app\outputs\flutter-apk\app-release.apk releases\atl_inventory-v1.0.0.apk
+--- build\app\outputs\flutter-apk\app-release.apk - app release location
