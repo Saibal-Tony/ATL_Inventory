@@ -7,3 +7,7 @@ flutter run
 flutter build apk --release 
 xcopy build\app\outputs\flutter-apk\app-release.apk releases\atl_inventory-v1.0.0.apk
 --- build\app\outputs\flutter-apk\app-release.apk - app release location
+
+# to pull repo back
+git pull origin main --rebase
+git push -u origin main
