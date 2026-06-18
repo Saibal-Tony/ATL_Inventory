@@ -1,19 +1,32 @@
+<div align="center">
+
+<img src="lib/assets/banner.png" alt="ATL Inventory" width="200"/>
+
 # ATL Inventory
+
 ### Atal Tinkering Lab · Component Tracker
 
-A cross-platform Flutter app for managing lab components in an Atal Tinkering Lab (ATL). Students can browse and search available equipment in real time. Admins can add, edit, and delete components — and every change reflects instantly on all connected devices via Supabase Realtime.
+![Flutter](https://img.shields.io/badge/Flutter-3.10.4-02569B?style=flat&logo=flutter&logoColor=white)
+![Dart](https://img.shields.io/badge/Dart-3.10.4-0175C2?style=flat&logo=dart&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-2.0.0-3ECF8E?style=flat&logo=supabase&logoColor=white)
+![Platform](https://img.shields.io/badge/Platform-Android-3DDC84?style=flat&logo=android&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-yellow?style=flat)
+![Status](https://img.shields.io/badge/Status-Active-brightgreen?style=flat)
+
+A Flutter app for managing lab components in an Atal Tinkering Lab.  
+Students browse in real time. Admins add, edit, and delete — changes reflect instantly on all devices.
+
+[Download APK](#releases) · [Report Bug](../../issues) · [Request Feature](../../issues)
+
+</div>
 
 ---
 
 ## Screenshots
 
-> Add screenshots to a `screenshots/` folder and uncomment the lines below.
-
-<!-- 
-| Login | Inventory | Add Component |
-|-------|-----------|---------------|
-| ![Login](screenshots/login.png) | ![Inventory](screenshots/inventory.png) | ![Add](screenshots/add.png) |
--->
+| Splash | Login | Inventory | Add Component |
+|--------|-------|-----------|---------------|
+| ![Splash](screenshots/splash.png) | ![Login](screenshots/login.png) | ![Inventory](screenshots/inventory.png) | ![Add](screenshots/add.png) |
 
 ---
 
@@ -22,13 +35,13 @@ A cross-platform Flutter app for managing lab components in an Atal Tinkering La
 | Feature | Details |
 |---|---|
 | **Real-time sync** | Supabase Realtime — admin changes appear on all devices in ~1 second |
-| **Role-based access** | Student (read-only browse) and Admin (password-protected edit) |
+| **Role-based access** | Student (read-only) and Admin (password-protected edit) |
 | **Component cards** | Image, name, category, box number, availability arc indicator |
 | **Category filters** | Tap chips to filter by component type |
 | **Search** | Search by name, serial number, category, or box number |
 | **QR scanner** | Scan a box QR code to filter components instantly |
-| **Image upload** | Admin can attach photos via camera or gallery (stored in Supabase Storage) |
-| **Light / Dark mode** | Toggle from any screen — persists across the session |
+| **Image upload** | Admin can attach photos via camera or gallery |
+| **Light / Dark mode** | Toggle from any screen |
 | **Offline resilient** | Shows last-loaded data if network drops |
 
 ---
@@ -39,7 +52,7 @@ A cross-platform Flutter app for managing lab components in an Atal Tinkering La
 |---|---|
 | Frontend | Flutter (Dart) |
 | Database | Supabase (PostgreSQL) |
-| Realtime | Supabase Realtime (WebSocket subscriptions) |
+| Realtime | Supabase Realtime (WebSocket) |
 | Storage | Supabase Storage (part images) |
 | Fonts | Google Fonts — Inter |
 | QR Scanning | `mobile_scanner` |
@@ -51,10 +64,11 @@ A cross-platform Flutter app for managing lab components in an Atal Tinkering La
 
 ```
 lib/
-├── main.dart                  # App entry, Supabase init, theme tokens (light + dark)
+├── main.dart                  # App entry, Supabase init, theme tokens
 ├── assets/
-│   ├── logo.jpg
-│   └── default_part.jpg
+│   ├── banner.png             # App banner / splash logo
+│   ├── logo.jpg               # App logo
+│   └── default_part.jpg       # Fallback part image
 └── screens/
     ├── splash_screen.dart     # Animated splash with logo
     ├── login_screen.dart      # Role selection (Student / Admin)
@@ -83,14 +97,9 @@ cd atl_inventory
 
 ### 2 — Set up Supabase
 
-#### Create a project
 1. Go to [supabase.com](https://supabase.com) → **New Project**
-2. Name it `atl-inventory`, pick a region closest to you
-3. Note down your **Project URL** and **anon public key** from  
-   `Settings → API`
-
-#### Run the setup SQL
-Open **SQL Editor** in your Supabase dashboard and run:
+2. Note your **Project URL** and **anon public key** from `Settings → API`
+3. Run this in **SQL Editor**:
 
 ```sql
 -- Parts table
@@ -101,103 +110,56 @@ create table if not exists public.parts (
   category      text        default '',
   box_no        integer     default 0,
   total_parts   integer     default 0,
-  current_count integer     default 0,
   availability  integer     default 0,
   image_url     text        default '',
   last_updated  timestamptz default now()
 );
 
--- Row Level Security
 alter table public.parts enable row level security;
-
-create policy "Public read"
-  on public.parts for select using (true);
-
-create policy "Public write"
-  on public.parts for all using (true) with check (true);
-
--- Enable Realtime
+create policy "Public read"  on public.parts for select using (true);
+create policy "Public write" on public.parts for all using (true) with check (true);
 alter publication supabase_realtime add table public.parts;
 
--- Storage bucket for images
+-- Storage bucket
 insert into storage.buckets (id, name, public)
-values ('part-images', 'part-images', true)
-on conflict do nothing;
+values ('part-images', 'part-images', true) on conflict do nothing;
 
-create policy "Public image read"
-  on storage.objects for select
-  using (bucket_id = 'part-images');
-
-create policy "Public image upload"
-  on storage.objects for insert
-  with check (bucket_id = 'part-images');
-
-create policy "Public image update"
-  on storage.objects for update
-  using (bucket_id = 'part-images');
-```
-
-#### Enable Realtime
-Go to **Database → Replication** and confirm the `parts` table is included,  
-or verify with:
-
-```sql
-select * from pg_publication_tables where pubname = 'supabase_realtime';
+create policy "Public image read"   on storage.objects for select using (bucket_id = 'part-images');
+create policy "Public image upload" on storage.objects for insert with check (bucket_id = 'part-images');
+create policy "Public image update" on storage.objects for update using (bucket_id = 'part-images');
 ```
 
 ### 3 — Add your credentials
 
-Open `lib/main.dart` and replace the placeholder values:
+In `lib/main.dart`:
 
 ```dart
-const kSupabaseUrl    = 'https://YOUR_PROJECT_ID.supabase.co';
+const kSupabaseUrl     = 'https://YOUR_PROJECT_ID.supabase.co';
 const kSupabaseAnonKey = 'YOUR_ANON_KEY';
 ```
 
-> **Note:** The anon key is safe to include in a mobile app — it only allows what your RLS policies permit.  
-> Never commit a `service_role` key.
-
-### 4 — Add assets
-
-Place your logo in `lib/assets/logo.jpg`.  
-A fallback "ATL" text renders automatically if the file is missing.
-
-### 5 — Android permissions
-
-In `android/app/src/main/AndroidManifest.xml`, inside `<manifest>`:
-
-```xml
-<uses-permission android:name="android.permission.INTERNET"/>
-<uses-permission android:name="android.permission.CAMERA"/>
-<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-```
-
-In `android/app/build.gradle`:
-
-```gradle
-defaultConfig {
-    minSdkVersion 21
-    ...
-}
-```
-
-### 6 — Install and run
+### 4 — Install and run
 
 ```bash
 flutter pub get
 flutter run
 ```
 
+### 5 — Build APK
+
+```bash
+flutter build apk --release
+# Output: build/app/outputs/flutter-apk/app-release.apk
+```
+
 ---
 
 ## Admin Access
 
-The app uses a simple password gate for admin mode.  
-The default password is `aTal@2026`.
+Default password: `aTal@2026`
 
-To change it, search for `aTal@2026` in the codebase and replace with your own password.  
-For a production deployment, move this to a secure environment variable or Supabase Edge Function.
+To change it, search `aTal@2026` in the codebase and replace it.  
+For production, move this to a Supabase Edge Function or environment variable.
 
 ---
 
@@ -214,24 +176,10 @@ Table: parts
 │ category     │ text        │ Used for filter chips                    │
 │ box_no       │ integer     │ Physical storage box number              │
 │ total_parts  │ integer     │ Total quantity in lab                    │
-│ current_count│ integer     │ Same as availability (kept for compat.)  │
 │ availability │ integer     │ Currently available count                │
 │ image_url    │ text        │ Public URL from Supabase Storage         │
 │ last_updated │ timestamptz │ Timestamp of last edit                   │
 └──────────────┴─────────────┴──────────────────────────────────────────┘
-```
-
----
-
-## Dependencies
-
-```yaml
-supabase_flutter: ^2.0.0   # Database, Realtime, Storage
-google_fonts: ^6.2.1        # Inter font
-image_picker: ^1.0.4        # Camera / gallery
-mobile_scanner: ^5.1.1      # QR code scanning
-uuid: ^4.4.0                # UUID generation for part IDs
-connectivity_plus: ^5.0.2   # Network state detection
 ```
 
 ---
@@ -245,22 +193,37 @@ Admin edits a part on Device A
 Supabase PostgreSQL (upsert)
         │
         ▼
-supabase_realtime publication broadcasts change
+supabase_realtime broadcasts change
         │
     ┌───┴───┐
     ▼       ▼
 Device B  Device C
-(re-fetches and updates UI instantly)
+(UI updates instantly — no refresh needed)
 ```
 
-No polling. No manual refresh. WebSocket subscription on app launch,  
-unsubscribed cleanly on screen dispose.
+---
+
+## Releases
+
+### v1.0.0 — Initial Release
+> First stable release of ATL Inventory
+
+**What's new:**
+- Real-time component tracking via Supabase
+- Student and Admin role-based access
+- Component cards with image, category, box number, availability arc
+- QR code scanner for instant box filtering
+- Image upload via camera or gallery
+- Light and Dark mode support
+- Animated splash screen and login screen
+
+**Download:** [app-release.apk](../../releases/download/v1.0.0/app-release.apk)
 
 ---
 
 ## Roadmap
 
-- [ ] Supabase Auth (email login for admins instead of hardcoded password)
+- [ ] Supabase Auth (email login for admins)
 - [ ] Low-stock alerts / push notifications
 - [ ] Export inventory as CSV / PDF
 - [ ] Borrow / return log with student name tracking
@@ -269,8 +232,6 @@ unsubscribed cleanly on screen dispose.
 ---
 
 ## Contributing
-
-Pull requests are welcome. For major changes please open an issue first.
 
 1. Fork the repo
 2. Create a branch: `git checkout -b feature/your-feature`
