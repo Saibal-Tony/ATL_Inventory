@@ -24,9 +24,22 @@ Students browse in real time. Admins add, edit, and delete — changes reflect i
 
 ## Screenshots
 
-|   Splash  |   Login   |  Inventory | Add Component |
-|-----------|-----------|------------|---------------|
-| ![Splash](screenshots/splash.png) | ![Login](screenshots/login.png) | ![Inventory](screenshots/inventory.png) | ![Add](screenshots/add.png) |
+<div align="center">
+<table>
+  <tr>
+    <td align="center"><b>Splash</b></td>
+    <td align="center"><b>Login</b></td>
+    <td align="center"><b>Inventory</b></td>
+    <td align="center"><b>Add Component</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/splash.png" width="200"/></td>
+    <td><img src="screenshots/login.png" width="200"/></td>
+    <td><img src="screenshots/inventory.png" width="200"/></td>
+    <td><img src="screenshots/add.png" width="200"/></td>
+  </tr>
+</table>
+</div>
 
 ---
 
