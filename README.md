@@ -6,12 +6,16 @@
 
 ### Atal Tinkering Lab · Component Tracker
 
-![Flutter](https://img.shields.io/badge/Flutter-3.10.4-02569B?style=flat&logo=flutter&logoColor=white)
-![Dart](https://img.shields.io/badge/Dart-3.10.4-0175C2?style=flat&logo=dart&logoColor=white)
-![Supabase](https://img.shields.io/badge/Supabase-2.0.0-3ECF8E?style=flat&logo=supabase&logoColor=white)
-![Platform](https://img.shields.io/badge/Platform-Android-3DDC84?style=flat&logo=android&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-yellow?style=flat)
-![Status](https://img.shields.io/badge/Status-Active-brightgreen?style=flat)
+<div align="center">
+
+<img src="https://img.shields.io/badge/Flutter-3.10.4-02569B?style=for-the-badge&logo=flutter&logoColor=white"/>
+<img src="https://img.shields.io/badge/Dart-3.10.4-0175C2?style=for-the-badge&logo=dart&logoColor=white"/>
+<img src="https://img.shields.io/badge/Supabase-2.0.0-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white"/>
+<img src="https://img.shields.io/badge/Platform-Android-3DDC84?style=for-the-badge&logo=android&logoColor=white"/>
+<img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge"/>
+<img src="https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge"/>
+
+</div>
 
 A Flutter app for managing lab components in an Atal Tinkering Lab.  
 Students browse in real time. Admins add, edit, and delete — changes reflect instantly on all devices.
