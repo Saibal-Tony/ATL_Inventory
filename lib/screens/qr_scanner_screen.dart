@@ -1,10 +1,13 @@
-import 'dart:ui';
+import 'dart:ui' as ui;
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:gal/gal.dart';
+import 'package:path_provider/path_provider.dart';
 import '../main.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -25,7 +28,7 @@ class QRScannerScreen extends StatelessWidget {
       backgroundColor: bg,
       body: Stack(
         children: [
-          // ── Glow blob center ──────────────────────────────────────────────
+          // ── Glow blob ─────────────────────────────────────────────────────
           Center(
             child: Container(
               width: 260,
@@ -61,7 +64,7 @@ class QRScannerScreen extends StatelessWidget {
 
                 const Spacer(flex: 2),
 
-                // ── QR bracket + title ────────────────────────────────────
+                // ── Bracket + title ───────────────────────────────────────
                 _QRBracket(accent: accent),
                 const SizedBox(height: 28),
                 Text(
@@ -76,7 +79,7 @@ class QRScannerScreen extends StatelessWidget {
 
                 const Spacer(flex: 3),
 
-                // ── Two cards ─────────────────────────────────────────────
+                // ── Two mode cards ────────────────────────────────────────
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 32),
                   child: Row(
@@ -123,7 +126,7 @@ class QRScannerScreen extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  QR bracket corners widget
+//  QR bracket corners
 // ─────────────────────────────────────────────────────────────────────────────
 class _QRBracket extends StatelessWidget {
   final Color accent;
@@ -155,16 +158,12 @@ class _BracketPainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
 
-    // Top-left
     canvas.drawLine(Offset(0, len), const Offset(0, 0), paint);
     canvas.drawLine(const Offset(0, 0), Offset(len, 0), paint);
-    // Top-right
     canvas.drawLine(Offset(w - len, 0), Offset(w, 0), paint);
     canvas.drawLine(Offset(w, 0), Offset(w, len), paint);
-    // Bottom-left
     canvas.drawLine(Offset(0, h - len), Offset(0, h), paint);
     canvas.drawLine(Offset(0, h), Offset(len, h), paint);
-    // Bottom-right
     canvas.drawLine(Offset(w - len, h), Offset(w, h), paint);
     canvas.drawLine(Offset(w, h), Offset(w, h - len), paint);
   }
@@ -324,12 +323,41 @@ class _GeneratorScreen extends StatefulWidget {
 
 class _GeneratorScreenState extends State<_GeneratorScreen> {
   final _ctrl = TextEditingController();
+  final _qrKey = GlobalKey();
   String _qrData = '';
 
   @override
   void dispose() {
     _ctrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveQR(Color accent) async {
+    try {
+      final boundary =
+          _qrKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      final bytes = byteData!.buffer.asUint8List();
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/qr_$_qrData.png');
+      await file.writeAsBytes(bytes);
+      await Gal.putImage(file.path);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('QR saved to gallery ✓'),
+            backgroundColor: accent,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Failed to save QR')));
+      }
+    }
   }
 
   @override
@@ -362,7 +390,7 @@ class _GeneratorScreenState extends State<_GeneratorScreen> {
           children: [
             const SizedBox(height: 12),
 
-            // ── Input ───────────────────────────────────────────────────
+            // ── Input ─────────────────────────────────────────────────────
             TextField(
               controller: _ctrl,
               style: TextStyle(color: txtP),
@@ -381,26 +409,29 @@ class _GeneratorScreenState extends State<_GeneratorScreen> {
 
             const SizedBox(height: 32),
 
-            // ── QR code display ─────────────────────────────────────────
             if (_qrData.isNotEmpty) ...[
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: accent.withOpacity(0.2),
-                      blurRadius: 32,
-                      spreadRadius: 4,
-                    ),
-                  ],
-                ),
-                child: QrImageView(
-                  data: _qrData,
-                  version: QrVersions.auto,
-                  size: 220,
-                  backgroundColor: Colors.white,
+              // ── QR code ─────────────────────────────────────────────────
+              RepaintBoundary(
+                key: _qrKey,
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: accent.withOpacity(0.2),
+                        blurRadius: 32,
+                        spreadRadius: 4,
+                      ),
+                    ],
+                  ),
+                  child: QrImageView(
+                    data: _qrData,
+                    version: QrVersions.auto,
+                    size: 220,
+                    backgroundColor: Colors.white,
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -414,32 +445,45 @@ class _GeneratorScreenState extends State<_GeneratorScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Screenshot or print this QR and stick it on the box',
+                'Save or print this QR and stick it on the box',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(color: txtM, fontSize: 12),
               ),
               const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.copy_rounded, size: 16),
-                  label: const Text('Copy label text'),
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: _qrData));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Copied "$_qrData" to clipboard',
-                          style: GoogleFonts.inter(color: txtP),
-                        ),
-                        backgroundColor: card,
-                      ),
-                    );
-                  },
-                ),
+
+              // ── Buttons ──────────────────────────────────────────────────
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.copy_rounded, size: 16),
+                      label: const Text('Copy label'),
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: _qrData));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Copied "$_qrData" to clipboard',
+                              style: GoogleFonts.inter(color: txtP),
+                            ),
+                            backgroundColor: card,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.download_rounded, size: 16),
+                      label: const Text('Save QR'),
+                      onPressed: () => _saveQR(accent),
+                    ),
+                  ),
+                ],
               ),
             ] else ...[
-              // ── Placeholder ──────────────────────────────────────────
+              // ── Placeholder ───────────────────────────────────────────────
               Container(
                 width: 260,
                 height: 260,
