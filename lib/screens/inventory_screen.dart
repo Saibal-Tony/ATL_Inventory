@@ -94,6 +94,19 @@ class _InventoryScreenState extends State<InventoryScreen> {
     }
   }
 
+  Future<String> _getPassword() async {
+    try {
+      final data = await _supabase
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'admin_password')
+          .single();
+      return data['value'] as String? ?? 'aTal@2026';
+    } catch (_) {
+      return 'aTal@2026';
+    }
+  }
+
   void _rebuildCategories() {
     final cats =
         _all
@@ -195,9 +208,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 
-  void _submitAdminPw(BuildContext dCtx, String pw) {
+  void _submitAdminPw(BuildContext dCtx, String pw) async {
     Navigator.pop(dCtx);
-    if (pw == 'aTal@2026') {
+    final currentPw = await _getPassword();
+    if (pw == currentPw) {
       setState(() => _isAdmin = true);
       _snack('Admin mode on ✓', color: _accent);
     } else {
@@ -461,6 +475,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
             ),
             onPressed: _toggleAdmin,
           ),
+
           // ── Borrow records (admin only) ────────────────────────────────
           if (_isAdmin)
             IconButton(
