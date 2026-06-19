@@ -108,8 +108,7 @@ class LoginScreen extends StatelessWidget {
                     obscureText: obscure,
                     autofocus: true,
                     style: TextStyle(color: txtP),
-                    onSubmitted: (_) =>
-                        _checkPw(dCtx, context, ctrl.text, currentPw),
+                    onSubmitted: (_) => _checkPw(dCtx, context, ctrl.text),
                     decoration: InputDecoration(
                       labelText: 'Password',
                       suffixIcon: IconButton(
@@ -137,7 +136,7 @@ class LoginScreen extends StatelessWidget {
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () =>
-                              _checkPw(dCtx, context, ctrl.text, currentPw),
+                              _checkPw(dCtx, context, ctrl.text),
                           child: const Text('Unlock'),
                         ),
                       ),
@@ -152,13 +151,9 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  void _checkPw(
-    BuildContext dCtx,
-    BuildContext sCtx,
-    String pw,
-    String currentPw,
-  ) {
+  void _checkPw(BuildContext dCtx, BuildContext sCtx, String pw) async {
     Navigator.pop(dCtx);
+    final currentPw = await _getPassword(); // fetch fresh every time
     if (pw == currentPw) {
       Navigator.pushReplacement(
         sCtx,
