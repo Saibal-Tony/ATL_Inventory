@@ -1,10 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart';
 import 'inventory_screen.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
+
+  // ── Get current password (falls back to default) ──────────────────────────
+  Future<String> _getPassword() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('admin_password') ?? 'aTal@2026';
+  }
+
+  Future<void> _savePassword(String pw) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('admin_password', pw);
+  }
 
   void _studentLogin(BuildContext context) {
     Navigator.pushReplacement(
@@ -13,9 +25,13 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  void _adminLogin(BuildContext context) {
+  // ── Normal admin login ─────────────────────────────────────────────────────
+  void _adminLogin(BuildContext context) async {
+    final currentPw = await _getPassword();
     final ctrl = TextEditingController();
     bool obscure = true;
+
+    if (!context.mounted) return;
 
     showDialog(
       context: context,
@@ -81,7 +97,8 @@ class LoginScreen extends StatelessWidget {
                     obscureText: obscure,
                     autofocus: true,
                     style: TextStyle(color: txtP),
-                    onSubmitted: (_) => _checkPw(dCtx, context, ctrl.text),
+                    onSubmitted: (_) =>
+                        _checkPw(dCtx, context, ctrl.text, currentPw),
                     decoration: InputDecoration(
                       labelText: 'Password',
                       suffixIcon: IconButton(
@@ -108,7 +125,8 @@ class LoginScreen extends StatelessWidget {
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () => _checkPw(dCtx, context, ctrl.text),
+                          onPressed: () =>
+                              _checkPw(dCtx, context, ctrl.text, currentPw),
                           child: const Text('Unlock'),
                         ),
                       ),
@@ -123,9 +141,14 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  void _checkPw(BuildContext dCtx, BuildContext sCtx, String pw) {
+  void _checkPw(
+    BuildContext dCtx,
+    BuildContext sCtx,
+    String pw,
+    String currentPw,
+  ) {
     Navigator.pop(dCtx);
-    if (pw == 'aTal@2026') {
+    if (pw == currentPw) {
       Navigator.pushReplacement(
         sCtx,
         MaterialPageRoute(builder: (_) => const InventoryScreen(isAdmin: true)),
@@ -138,6 +161,211 @@ class LoginScreen extends StatelessWidget {
         ),
       );
     }
+  }
+
+  // ── Long press — change password ──────────────────────────────────────────
+  void _changePassword(BuildContext context) async {
+    final currentPw = await _getPassword();
+    final oldCtrl = TextEditingController();
+    final newCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+    bool obsOld = true, obsNew = true, obsConfirm = true;
+
+    if (!context.mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (dCtx) => StatefulBuilder(
+        builder: (dCtx, setD) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          final surface = isDark ? AppColors.surface : AppColorsLight.surface;
+          final accent = isDark ? AppColors.accent : AppColorsLight.accent;
+          final txtP = isDark
+              ? AppColors.textPrimary
+              : AppColorsLight.textPrimary;
+          final txtM = isDark ? AppColors.textMuted : AppColorsLight.textMuted;
+          final danger = isDark ? AppColors.danger : AppColorsLight.danger;
+
+          return Dialog(
+            backgroundColor: surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Header ───────────────────────────────────────────
+                  Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: accent.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          Icons.lock_reset_outlined,
+                          color: accent,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Change Password',
+                            style: GoogleFonts.inter(
+                              color: txtP,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            'Admin only',
+                            style: GoogleFonts.inter(color: txtM, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 22),
+
+                  // ── Current password ─────────────────────────────────
+                  TextField(
+                    controller: oldCtrl,
+                    obscureText: obsOld,
+                    style: TextStyle(color: txtP),
+                    decoration: InputDecoration(
+                      labelText: 'Current password',
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obsOld
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: txtM,
+                          size: 18,
+                        ),
+                        onPressed: () => setD(() => obsOld = !obsOld),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // ── New password ─────────────────────────────────────
+                  TextField(
+                    controller: newCtrl,
+                    obscureText: obsNew,
+                    style: TextStyle(color: txtP),
+                    decoration: InputDecoration(
+                      labelText: 'New password',
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obsNew
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: txtM,
+                          size: 18,
+                        ),
+                        onPressed: () => setD(() => obsNew = !obsNew),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // ── Confirm new password ─────────────────────────────
+                  TextField(
+                    controller: confirmCtrl,
+                    obscureText: obsConfirm,
+                    style: TextStyle(color: txtP),
+                    decoration: InputDecoration(
+                      labelText: 'Confirm new password',
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obsConfirm
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: txtM,
+                          size: 18,
+                        ),
+                        onPressed: () => setD(() => obsConfirm = !obsConfirm),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+
+                  // ── Buttons ──────────────────────────────────────────
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(dCtx),
+                          child: const Text('Cancel'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            if (oldCtrl.text != currentPw) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text(
+                                    'Current password is wrong',
+                                  ),
+                                  backgroundColor: danger,
+                                ),
+                              );
+                              return;
+                            }
+                            if (newCtrl.text.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text(
+                                    'New password cannot be empty',
+                                  ),
+                                  backgroundColor: danger,
+                                ),
+                              );
+                              return;
+                            }
+                            if (newCtrl.text != confirmCtrl.text) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text('Passwords do not match'),
+                                  backgroundColor: danger,
+                                ),
+                              );
+                              return;
+                            }
+                            await _savePassword(newCtrl.text);
+                            if (!dCtx.mounted) return;
+                            Navigator.pop(dCtx);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text(
+                                  'Password changed successfully ✓',
+                                ),
+                                backgroundColor: accent,
+                              ),
+                            );
+                          },
+                          child: const Text('Save'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -278,6 +506,7 @@ class LoginScreen extends StatelessWidget {
                 subtitle: 'Browse and search available components',
                 accent: false,
                 onTap: () => _studentLogin(context),
+                onLongPress: null,
               ),
               const SizedBox(height: 12),
               _RoleCard(
@@ -286,6 +515,7 @@ class LoginScreen extends StatelessWidget {
                 subtitle: 'Add, edit and manage inventory',
                 accent: true,
                 onTap: () => _adminLogin(context),
+                onLongPress: () => _changePassword(context), // 🔐 hidden
               ),
               const SizedBox(height: 32),
             ],
@@ -302,6 +532,7 @@ class _RoleCard extends StatelessWidget {
   final String subtitle;
   final bool accent;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
   const _RoleCard({
     required this.icon,
@@ -309,6 +540,7 @@ class _RoleCard extends StatelessWidget {
     required this.subtitle,
     required this.accent,
     required this.onTap,
+    required this.onLongPress,
   });
 
   @override
@@ -323,6 +555,7 @@ class _RoleCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
