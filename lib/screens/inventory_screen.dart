@@ -6,6 +6,7 @@ import '../main.dart';
 import 'add_part_screen.dart';
 import 'login_screen.dart';
 import 'qr_scanner_screen.dart';
+import 'borrow_screen.dart';
 
 class InventoryScreen extends StatefulWidget {
   final bool isAdmin;
@@ -460,7 +461,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
             ),
             onPressed: _toggleAdmin,
           ),
-
+          // ── Borrow records (admin only) ────────────────────────────────
+          if (_isAdmin)
+            IconButton(
+              icon: Icon(Icons.assignment_outlined, color: _txtM, size: 19),
+              tooltip: 'Borrow records',
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const BorrowScreen()),
+              ),
+            ),
           // ── Logout ──────────────────────────────────────────────────────
           IconButton(
             icon: Icon(Icons.logout_outlined, color: _txtM, size: 19),
