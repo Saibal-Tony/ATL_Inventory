@@ -1,21 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../main.dart';
 import 'inventory_screen.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
-  // ── Get current password (falls back to default) ──────────────────────────
+  // ── Fetch password from Supabase ──────────────────────────────────────────
   Future<String> _getPassword() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('admin_password') ?? 'aTal@2026';
+    try {
+      final data = await Supabase.instance.client
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'admin_password')
+          .single();
+      return data['value'] as String? ?? 'aTal@2026';
+    } catch (_) {
+      return 'aTal@2026'; // fallback if offline
+    }
   }
 
+  // ── Save password to Supabase ─────────────────────────────────────────────
   Future<void> _savePassword(String pw) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('admin_password', pw);
+    await Supabase.instance.client
+        .from('app_settings')
+        .update({'value': pw})
+        .eq('key', 'admin_password');
   }
 
   void _studentLogin(BuildContext context) {
@@ -170,6 +181,7 @@ class LoginScreen extends StatelessWidget {
     final newCtrl = TextEditingController();
     final confirmCtrl = TextEditingController();
     bool obsOld = true, obsNew = true, obsConfirm = true;
+    bool saving = false;
 
     if (!context.mounted) return;
 
@@ -197,7 +209,6 @@ class LoginScreen extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Header ───────────────────────────────────────────
                   Row(
                     children: [
                       Container(
@@ -235,7 +246,7 @@ class LoginScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 22),
 
-                  // ── Current password ─────────────────────────────────
+                  // Current password
                   TextField(
                     controller: oldCtrl,
                     obscureText: obsOld,
@@ -256,7 +267,7 @@ class LoginScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
 
-                  // ── New password ─────────────────────────────────────
+                  // New password
                   TextField(
                     controller: newCtrl,
                     obscureText: obsNew,
@@ -277,7 +288,7 @@ class LoginScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
 
-                  // ── Confirm new password ─────────────────────────────
+                  // Confirm password
                   TextField(
                     controller: confirmCtrl,
                     obscureText: obsConfirm,
@@ -298,63 +309,76 @@ class LoginScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 22),
 
-                  // ── Buttons ──────────────────────────────────────────
                   Row(
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () => Navigator.pop(dCtx),
+                          onPressed: saving ? null : () => Navigator.pop(dCtx),
                           child: const Text('Cancel'),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () async {
-                            if (oldCtrl.text != currentPw) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: const Text(
-                                    'Current password is wrong',
+                          onPressed: saving
+                              ? null
+                              : () async {
+                                  if (oldCtrl.text != currentPw) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: const Text(
+                                          'Current password is wrong',
+                                        ),
+                                        backgroundColor: danger,
+                                      ),
+                                    );
+                                    return;
+                                  }
+                                  if (newCtrl.text.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: const Text(
+                                          'New password cannot be empty',
+                                        ),
+                                        backgroundColor: danger,
+                                      ),
+                                    );
+                                    return;
+                                  }
+                                  if (newCtrl.text != confirmCtrl.text) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: const Text(
+                                          'Passwords do not match',
+                                        ),
+                                        backgroundColor: danger,
+                                      ),
+                                    );
+                                    return;
+                                  }
+                                  setD(() => saving = true);
+                                  await _savePassword(newCtrl.text);
+                                  if (!dCtx.mounted) return;
+                                  Navigator.pop(dCtx);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: const Text(
+                                        'Password changed successfully ✓',
+                                      ),
+                                      backgroundColor: accent,
+                                    ),
+                                  );
+                                },
+                          child: saving
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
                                   ),
-                                  backgroundColor: danger,
-                                ),
-                              );
-                              return;
-                            }
-                            if (newCtrl.text.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: const Text(
-                                    'New password cannot be empty',
-                                  ),
-                                  backgroundColor: danger,
-                                ),
-                              );
-                              return;
-                            }
-                            if (newCtrl.text != confirmCtrl.text) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: const Text('Passwords do not match'),
-                                  backgroundColor: danger,
-                                ),
-                              );
-                              return;
-                            }
-                            await _savePassword(newCtrl.text);
-                            if (!dCtx.mounted) return;
-                            Navigator.pop(dCtx);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: const Text(
-                                  'Password changed successfully ✓',
-                                ),
-                                backgroundColor: accent,
-                              ),
-                            );
-                          },
-                          child: const Text('Save'),
+                                )
+                              : const Text('Save'),
                         ),
                       ),
                     ],
@@ -386,15 +410,12 @@ class LoginScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Theme toggle ───────────────────────────────────────────
               Align(
                 alignment: Alignment.centerRight,
                 child: GestureDetector(
-                  onTap: () {
-                    themeNotifier.value = isDark
-                        ? ThemeMode.light
-                        : ThemeMode.dark;
-                  },
+                  onTap: () => themeNotifier.value = isDark
+                      ? ThemeMode.light
+                      : ThemeMode.dark,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -432,7 +453,6 @@ class LoginScreen extends StatelessWidget {
 
               const Spacer(flex: 2),
 
-              // ── Branding ───────────────────────────────────────────────
               Center(
                 child: Column(
                   children: [
@@ -515,7 +535,7 @@ class LoginScreen extends StatelessWidget {
                 subtitle: 'Add, edit and manage inventory',
                 accent: true,
                 onTap: () => _adminLogin(context),
-                onLongPress: () => _changePassword(context), // 🔐 hidden
+                onLongPress: () => _changePassword(context),
               ),
               const SizedBox(height: 32),
             ],
