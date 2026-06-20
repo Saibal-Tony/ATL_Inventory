@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../main.dart';
+import '../services/pdf_export_service.dart';
 
 class BorrowScreen extends StatefulWidget {
   const BorrowScreen({super.key});
@@ -861,6 +862,11 @@ class _BorrowScreenState extends State<BorrowScreen> {
               size: 20,
             ),
             onPressed: () => setState(() => _sortNewest = !_sortNewest),
+          ),
+          IconButton(
+            icon: Icon(Icons.picture_as_pdf_outlined, color: _txtM, size: 20),
+            tooltip: 'Export PDF',
+            onPressed: () => PdfExportService.exportBorrows(context, _borrows),
           ),
         ],
       ),
