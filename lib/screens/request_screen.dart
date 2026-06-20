@@ -811,7 +811,9 @@ class StudentRequestDialog {
     final rollCtrl = TextEditingController();
     final contactCtrl = TextEditingController();
     final qtyCtrl = TextEditingController(text: '1');
+
     Map<String, dynamic>? selectedPart;
+    final List<Map<String, dynamic>> cart = [];
     bool saving = false;
 
     final surf = isDark ? AppColors.surface : AppColorsLight.surface;
@@ -861,7 +863,7 @@ class StudentRequestDialog {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Request Component',
+                          'Request Components',
                           style: GoogleFonts.inter(
                             color: txtP,
                             fontSize: 17,
@@ -879,7 +881,7 @@ class StudentRequestDialog {
                 const SizedBox(height: 18),
 
                 // ── Component picker ────────────────────────────────────
-                _sLabel('SELECT COMPONENT', txtM),
+                _sLabel('ADD COMPONENTS', txtM),
                 const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -915,13 +917,123 @@ class StudentRequestDialog {
                   ),
                 ),
                 const SizedBox(height: 10),
-                _fld(
-                  qtyCtrl,
-                  'Quantity',
-                  txtP,
-                  txtM,
-                  keyboardType: TextInputType.number,
+                Row(
+                  children: [
+                    Expanded(
+                      child: _fld(
+                        qtyCtrl,
+                        'Qty',
+                        txtP,
+                        txtM,
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.add, size: 16),
+                      label: const Text('Add'),
+                      onPressed: () {
+                        if (selectedPart == null) {
+                          _showSnack(context, 'Select a component', danger);
+                          return;
+                        }
+                        final qty = int.tryParse(qtyCtrl.text.trim()) ?? 0;
+                        if (qty <= 0) {
+                          _showSnack(context, 'Enter valid qty', danger);
+                          return;
+                        }
+                        final avail =
+                            (selectedPart!['availability'] as num?)?.toInt() ??
+                            0;
+                        if (qty > avail) {
+                          _showSnack(context, 'Only $avail available', danger);
+                          return;
+                        }
+
+                        final existing = cart.indexWhere(
+                          (c) => c['part_id'] == selectedPart!['id'],
+                        );
+                        if (existing >= 0) {
+                          final totalQty =
+                              (cart[existing]['qty_requested'] as int) + qty;
+                          if (totalQty > avail) {
+                            _showSnack(
+                              context,
+                              'Only $avail available total',
+                              danger,
+                            );
+                            return;
+                          }
+                          setD(
+                            () => cart[existing]['qty_requested'] = totalQty,
+                          );
+                        } else {
+                          setD(
+                            () => cart.add({
+                              'part_id': selectedPart!['id'],
+                              'part_name': selectedPart!['part_name'],
+                              'image_url': selectedPart!['image_url'] ?? '',
+                              'qty_requested': qty,
+                            }),
+                          );
+                        }
+                        setD(() {
+                          selectedPart = null;
+                          qtyCtrl.text = '1';
+                        });
+                      },
+                    ),
+                  ],
                 ),
+
+                // ── Cart ────────────────────────────────────────────────
+                if (cart.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  _sLabel('CART (${cart.length})', txtM),
+                  const SizedBox(height: 8),
+                  ...cart.map(
+                    (item) => Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: card,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: border),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              item['part_name'],
+                              style: GoogleFonts.inter(
+                                color: txtP,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            'x${item['qty_requested']}',
+                            style: GoogleFonts.inter(
+                              color: accent,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () => setD(() => cart.remove(item)),
+                            child: Icon(Icons.close, color: danger, size: 16),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+
                 const SizedBox(height: 18),
 
                 // ── Student details ─────────────────────────────────────
@@ -969,10 +1081,10 @@ class StudentRequestDialog {
                         onPressed: saving
                             ? null
                             : () async {
-                                if (selectedPart == null) {
+                                if (cart.isEmpty) {
                                   _showSnack(
                                     context,
-                                    'Select a component',
+                                    'Add at least one component',
                                     danger,
                                   );
                                   return;
@@ -1006,45 +1118,24 @@ class StudentRequestDialog {
                                   return;
                                 }
 
-                                final qty =
-                                    int.tryParse(qtyCtrl.text.trim()) ?? 0;
-                                if (qty <= 0) {
-                                  _showSnack(
-                                    context,
-                                    'Enter valid quantity',
-                                    danger,
-                                  );
-                                  return;
-                                }
-
-                                final avail =
-                                    (selectedPart!['availability'] as num?)
-                                        ?.toInt() ??
-                                    0;
-                                if (qty > avail) {
-                                  _showSnack(
-                                    context,
-                                    'Only $avail available',
-                                    danger,
-                                  );
-                                  return;
-                                }
-
                                 setD(() => saving = true);
 
-                                await _supabase.from('requests').insert({
-                                  'id': const Uuid().v4(),
-                                  'student_name': nameCtrl.text.trim(),
-                                  'class': classCtrl.text.trim(),
-                                  'section': sectionCtrl.text.trim(),
-                                  'roll_no': rollCtrl.text.trim(),
-                                  'contact_no': contactCtrl.text.trim(),
-                                  'part_id': selectedPart!['id'],
-                                  'part_name': selectedPart!['part_name'],
-                                  'image_url': selectedPart!['image_url'] ?? '',
-                                  'qty_requested': qty,
-                                  'status': 'pending',
-                                });
+                                // Insert one request per component in cart
+                                for (final item in cart) {
+                                  await _supabase.from('requests').insert({
+                                    'id': const Uuid().v4(),
+                                    'student_name': nameCtrl.text.trim(),
+                                    'class': classCtrl.text.trim(),
+                                    'section': sectionCtrl.text.trim(),
+                                    'roll_no': rollCtrl.text.trim(),
+                                    'contact_no': contactCtrl.text.trim(),
+                                    'part_id': item['part_id'],
+                                    'part_name': item['part_name'],
+                                    'image_url': item['image_url'] ?? '',
+                                    'qty_requested': item['qty_requested'],
+                                    'status': 'pending',
+                                  });
+                                }
 
                                 if (!dCtx.mounted) return;
                                 Navigator.pop(dCtx);
