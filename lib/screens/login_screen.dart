@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../main.dart';
 import 'inventory_screen.dart';
+import 'student_auth_screen.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -30,9 +31,9 @@ class LoginScreen extends StatelessWidget {
   }
 
   void _studentLogin(BuildContext context) {
-    Navigator.pushReplacement(
+    Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const InventoryScreen(isAdmin: false)),
+      MaterialPageRoute(builder: (_) => const StudentAuthScreen()),
     );
   }
 
@@ -135,8 +136,7 @@ class LoginScreen extends StatelessWidget {
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () =>
-                              _checkPw(dCtx, context, ctrl.text),
+                          onPressed: () => _checkPw(dCtx, context, ctrl.text),
                           child: const Text('Unlock'),
                         ),
                       ),
