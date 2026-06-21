@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../main.dart';
-import 'borrow_screen.dart';
 
 class RequestScreen extends StatefulWidget {
   const RequestScreen({super.key});
@@ -28,11 +27,10 @@ class _RequestScreenState extends State<RequestScreen> {
   Color get _border => _isDark ? AppColors.border : AppColorsLight.border;
   Color get _accent => _isDark ? AppColors.accent : AppColorsLight.accent;
   Color get _danger => _isDark ? AppColors.danger : AppColorsLight.danger;
-  Color get _warn => isDark ? AppColors.warning : AppColorsLight.warning;
+  Color get _warn => _isDark ? AppColors.warning : AppColorsLight.warning;
   Color get _txtP =>
       _isDark ? AppColors.textPrimary : AppColorsLight.textPrimary;
   Color get _txtM => _isDark ? AppColors.textMuted : AppColorsLight.textMuted;
-  bool get isDark => _isDark;
 
   @override
   void initState() {
@@ -126,7 +124,9 @@ class _RequestScreenState extends State<RequestScreen> {
   }
 
   // ── Approve ────────────────────────────────────────────────────────────────
-  void _approveRequest(Map<String, dynamic> req) async {
+  void _approveRequest(Map<String, dynamic> req) {
+    final items = List<Map<String, dynamic>>.from(req['items'] as List);
+
     showDialog(
       context: context,
       builder: (dCtx) => Dialog(
@@ -161,11 +161,38 @@ class _RequestScreenState extends State<RequestScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                '${req['student_name']} will receive ${req['qty_requested']} x ${req['part_name']}.\nInventory will be updated.',
+                '${req['student_name']} will receive ${items.length} component type${items.length > 1 ? 's' : ''}.\nInventory will be updated.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(color: _txtM, fontSize: 13),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+              // Show items summary
+              ...items.map(
+                (item) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    children: [
+                      Icon(Icons.circle, color: _accent, size: 6),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          item['part_name'],
+                          style: GoogleFonts.inter(color: _txtP, fontSize: 12),
+                        ),
+                      ),
+                      Text(
+                        'x${item['qty_requested']}',
+                        style: GoogleFonts.inter(
+                          color: _accent,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
               Row(
                 children: [
                   Expanded(
@@ -181,7 +208,7 @@ class _RequestScreenState extends State<RequestScreen> {
                         Navigator.pop(dCtx);
                         await _doApprove(req);
                       },
-                      child: const Text('Approve'),
+                      child: const Text('Approve All'),
                     ),
                   ),
                 ],
@@ -195,19 +222,24 @@ class _RequestScreenState extends State<RequestScreen> {
 
   Future<void> _doApprove(Map<String, dynamic> req) async {
     try {
-      final qty = req['qty_requested'] as int;
+      final items = List<Map<String, dynamic>>.from(req['items'] as List);
 
-      // Check availability
-      final part = await _supabase
-          .from('parts')
-          .select('availability')
-          .eq('id', req['part_id'])
-          .single();
-      final avail = (part['availability'] as num).toInt();
-
-      if (qty > avail) {
-        _snack('Not enough stock — only $avail available', color: _danger);
-        return;
+      // Check availability for all items first
+      for (final item in items) {
+        final part = await _supabase
+            .from('parts')
+            .select('availability, part_name')
+            .eq('id', item['part_id'])
+            .single();
+        final avail = (part['availability'] as num).toInt();
+        final qty = item['qty_requested'] as int;
+        if (qty > avail) {
+          _snack(
+            'Not enough stock for ${item['part_name']} — only $avail available',
+            color: _danger,
+          );
+          return;
+        }
       }
 
       // Update request status
@@ -216,13 +248,33 @@ class _RequestScreenState extends State<RequestScreen> {
           .update({'status': 'approved'})
           .eq('id', req['id']);
 
-      // Reduce inventory
-      await _supabase
-          .from('parts')
-          .update({'availability': avail - qty})
-          .eq('id', req['part_id']);
+      // Reduce inventory and build borrow items
+      final borrowItems = <Map<String, dynamic>>[];
+      for (final item in items) {
+        final part = await _supabase
+            .from('parts')
+            .select('availability')
+            .eq('id', item['part_id'])
+            .single();
+        final avail = (part['availability'] as num).toInt();
+        final qty = item['qty_requested'] as int;
 
-      // Create borrow record
+        await _supabase
+            .from('parts')
+            .update({'availability': avail - qty})
+            .eq('id', item['part_id']);
+
+        borrowItems.add({
+          'part_id': item['part_id'],
+          'part_name': item['part_name'],
+          'image_url': item['image_url'] ?? '',
+          'qty_issued': qty,
+          'qty_returned': 0,
+          'is_returned': false,
+        });
+      }
+
+      // Create single borrow record with all items
       await _supabase.from('borrows').insert({
         'id': const Uuid().v4(),
         'student_name': req['student_name'],
@@ -231,16 +283,7 @@ class _RequestScreenState extends State<RequestScreen> {
         'roll_no': req['roll_no'],
         'contact_no': req['contact_no'],
         'is_fully_returned': false,
-        'items': [
-          {
-            'part_id': req['part_id'],
-            'part_name': req['part_name'],
-            'image_url': req['image_url'] ?? '',
-            'qty_issued': qty,
-            'qty_returned': 0,
-            'is_returned': false,
-          },
-        ],
+        'items': borrowItems,
       });
 
       _snack('Request approved ✓', color: _accent);
@@ -517,13 +560,15 @@ class _RequestScreenState extends State<RequestScreen> {
                 final status = req['status'] as String;
                 final isPending = status == 'pending';
                 final isApproved = status == 'approved';
+                final items = List<Map<String, dynamic>>.from(
+                  req['items'] as List,
+                );
 
                 final statusColor = isPending
-                    ? (_isDark ? AppColors.warning : AppColorsLight.warning)
+                    ? _warn
                     : isApproved
                     ? _accent
                     : _danger;
-
                 final statusLabel = isPending
                     ? 'Pending'
                     : isApproved
@@ -535,7 +580,6 @@ class _RequestScreenState extends State<RequestScreen> {
                     ? Icons.check_circle_outline
                     : Icons.cancel_outlined;
 
-                final imgUrl = req['image_url'] as String? ?? '';
                 final reqDate = DateTime.tryParse(
                   req['request_date'] ?? '',
                 )?.toLocal();
@@ -559,13 +603,12 @@ class _RequestScreenState extends State<RequestScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // ── Student info ────────────────────────────────
+                        // ── Student info ──────────────────────────────
                         Padding(
                           padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Avatar
                               Container(
                                 width: 42,
                                 height: 42,
@@ -624,7 +667,6 @@ class _RequestScreenState extends State<RequestScreen> {
                                   ],
                                 ),
                               ),
-                              // Status badge
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 8,
@@ -663,95 +705,136 @@ class _RequestScreenState extends State<RequestScreen> {
 
                         Divider(color: _border, height: 1),
 
-                        // ── Component ───────────────────────────────────
+                        // ── Components list ───────────────────────────
                         Padding(
-                          padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-                          child: Row(
-                            children: [
-                              // Component image
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: imgUrl.isNotEmpty
-                                    ? Image.network(
-                                        imgUrl,
-                                        width: 48,
-                                        height: 48,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) =>
-                                            _imgPlaceholder(),
-                                      )
-                                    : _imgPlaceholder(),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                          padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
+                          child: Text(
+                            'REQUESTED COMPONENTS',
+                            style: TextStyle(
+                              color: _txtM,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(10, 4, 10, 12),
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: items.map((item) {
+                              final imgUrl = item['image_url'] as String? ?? '';
+                              return Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: _surf,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: statusColor.withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
+                                    Stack(
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                          child: imgUrl.isNotEmpty
+                                              ? Image.network(
+                                                  imgUrl,
+                                                  width: 36,
+                                                  height: 36,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (_, __, ___) =>
+                                                      _imgPlaceholder(),
+                                                )
+                                              : _imgPlaceholder(),
+                                        ),
+                                        Positioned(
+                                          bottom: -4,
+                                          left: -4,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 4,
+                                              vertical: 1,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: statusColor,
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              'x${item['qty_requested']}',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(width: 10),
                                     Text(
-                                      req['part_name'],
+                                      item['part_name'],
                                       style: GoogleFonts.inter(
                                         color: _txtP,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 3),
-                                    Text(
-                                      'Requested: ${req['qty_requested']} unit${(req['qty_requested'] as int) > 1 ? 's' : ''}',
-                                      style: GoogleFonts.inter(
-                                        color: _txtM,
-                                        fontSize: 11,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ],
                                 ),
-                              ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
 
-                              // Approve / Deny buttons (only for pending)
-                              if (isPending) ...[
-                                GestureDetector(
-                                  onTap: () => _denyRequest(req),
-                                  child: Container(
-                                    width: 34,
-                                    height: 34,
-                                    decoration: BoxDecoration(
-                                      color: _danger.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(
-                                        color: _danger.withOpacity(0.3),
+                        // ── Approve / Deny buttons ────────────────────
+                        if (isPending)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    icon: Icon(
+                                      Icons.close_rounded,
+                                      size: 15,
+                                      color: _danger,
+                                    ),
+                                    label: Text(
+                                      'Deny',
+                                      style: TextStyle(color: _danger),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      side: BorderSide(
+                                        color: _danger.withOpacity(0.5),
                                       ),
                                     ),
-                                    child: Icon(
-                                      Icons.close_rounded,
-                                      color: _danger,
-                                      size: 18,
-                                    ),
+                                    onPressed: () => _denyRequest(req),
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                GestureDetector(
-                                  onTap: () => _approveRequest(req),
-                                  child: Container(
-                                    width: 34,
-                                    height: 34,
-                                    decoration: BoxDecoration(
-                                      color: _accent.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(
-                                        color: _accent.withOpacity(0.3),
-                                      ),
-                                    ),
-                                    child: Icon(
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    icon: const Icon(
                                       Icons.check_rounded,
-                                      color: _accent,
-                                      size: 18,
+                                      size: 15,
                                     ),
+                                    label: const Text('Approve All'),
+                                    onPressed: () => _approveRequest(req),
                                   ),
                                 ),
                               ],
-                            ],
+                            ),
                           ),
-                        ),
 
                         if (!isPending)
                           Padding(
@@ -785,18 +868,18 @@ class _RequestScreenState extends State<RequestScreen> {
   );
 
   Widget _imgPlaceholder() => Container(
-    width: 48,
-    height: 48,
+    width: 36,
+    height: 36,
     decoration: BoxDecoration(
       color: _border,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(6),
     ),
-    child: Icon(Icons.memory_outlined, color: _txtM, size: 22),
+    child: Icon(Icons.memory_outlined, color: _txtM, size: 18),
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Student Request Dialog — call this from inventory screen
+//  Student Request Dialog
 // ─────────────────────────────────────────────────────────────────────────────
 class StudentRequestDialog {
   static void show(
@@ -881,7 +964,15 @@ class StudentRequestDialog {
                 const SizedBox(height: 18),
 
                 // ── Component picker ────────────────────────────────────
-                _sLabel('ADD COMPONENTS', txtM),
+                Text(
+                  'ADD COMPONENTS',
+                  style: GoogleFonts.inter(
+                    color: txtM,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -920,12 +1011,18 @@ class StudentRequestDialog {
                 Row(
                   children: [
                     Expanded(
-                      child: _fld(
-                        qtyCtrl,
-                        'Qty',
-                        txtP,
-                        txtM,
+                      child: TextField(
+                        controller: qtyCtrl,
+                        style: TextStyle(color: txtP, fontSize: 13),
                         keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Qty',
+                          labelStyle: TextStyle(color: txtM, fontSize: 12),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -949,7 +1046,6 @@ class StudentRequestDialog {
                           _showSnack(context, 'Only $avail available', danger);
                           return;
                         }
-
                         final existing = cart.indexWhere(
                           (c) => c['part_id'] == selectedPart!['id'],
                         );
@@ -989,7 +1085,15 @@ class StudentRequestDialog {
                 // ── Cart ────────────────────────────────────────────────
                 if (cart.isNotEmpty) ...[
                   const SizedBox(height: 14),
-                  _sLabel('CART (${cart.length})', txtM),
+                  Text(
+                    'CART (${cart.length})',
+                    style: GoogleFonts.inter(
+                      color: txtM,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   ...cart.map(
                     (item) => Container(
@@ -1037,29 +1141,93 @@ class StudentRequestDialog {
                 const SizedBox(height: 18),
 
                 // ── Student details ─────────────────────────────────────
-                _sLabel('YOUR DETAILS', txtM),
+                Text(
+                  'YOUR DETAILS',
+                  style: GoogleFonts.inter(
+                    color: txtM,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                  ),
+                ),
                 const SizedBox(height: 8),
-                _fld(nameCtrl, 'Your Name', txtP, txtM),
+                TextField(
+                  controller: nameCtrl,
+                  style: TextStyle(color: txtP, fontSize: 13),
+                  decoration: InputDecoration(
+                    labelText: 'Your Name',
+                    labelStyle: TextStyle(color: txtM, fontSize: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    Expanded(child: _fld(classCtrl, 'Class', txtP, txtM)),
+                    Expanded(
+                      child: TextField(
+                        controller: classCtrl,
+                        style: TextStyle(color: txtP, fontSize: 13),
+                        decoration: InputDecoration(
+                          labelText: 'Class',
+                          labelStyle: TextStyle(color: txtM, fontSize: 12),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                    ),
                     const SizedBox(width: 10),
-                    Expanded(child: _fld(sectionCtrl, 'Section', txtP, txtM)),
+                    Expanded(
+                      child: TextField(
+                        controller: sectionCtrl,
+                        style: TextStyle(color: txtP, fontSize: 13),
+                        decoration: InputDecoration(
+                          labelText: 'Section',
+                          labelStyle: TextStyle(color: txtM, fontSize: 12),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    Expanded(child: _fld(rollCtrl, 'Roll No', txtP, txtM)),
+                    Expanded(
+                      child: TextField(
+                        controller: rollCtrl,
+                        style: TextStyle(color: txtP, fontSize: 13),
+                        decoration: InputDecoration(
+                          labelText: 'Roll No',
+                          labelStyle: TextStyle(color: txtM, fontSize: 12),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: _fld(
-                        contactCtrl,
-                        'Contact No',
-                        txtP,
-                        txtM,
+                      child: TextField(
+                        controller: contactCtrl,
+                        style: TextStyle(color: txtP, fontSize: 13),
                         keyboardType: TextInputType.phone,
+                        decoration: InputDecoration(
+                          labelText: 'Contact No',
+                          labelStyle: TextStyle(color: txtM, fontSize: 12),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -1120,22 +1288,17 @@ class StudentRequestDialog {
 
                                 setD(() => saving = true);
 
-                                // Insert one request per component in cart
-                                for (final item in cart) {
-                                  await _supabase.from('requests').insert({
-                                    'id': const Uuid().v4(),
-                                    'student_name': nameCtrl.text.trim(),
-                                    'class': classCtrl.text.trim(),
-                                    'section': sectionCtrl.text.trim(),
-                                    'roll_no': rollCtrl.text.trim(),
-                                    'contact_no': contactCtrl.text.trim(),
-                                    'part_id': item['part_id'],
-                                    'part_name': item['part_name'],
-                                    'image_url': item['image_url'] ?? '',
-                                    'qty_requested': item['qty_requested'],
-                                    'status': 'pending',
-                                  });
-                                }
+                                // Insert ONE request with all items as JSON
+                                await _supabase.from('requests').insert({
+                                  'id': const Uuid().v4(),
+                                  'student_name': nameCtrl.text.trim(),
+                                  'class': classCtrl.text.trim(),
+                                  'section': sectionCtrl.text.trim(),
+                                  'roll_no': rollCtrl.text.trim(),
+                                  'contact_no': contactCtrl.text.trim(),
+                                  'items': cart,
+                                  'status': 'pending',
+                                });
 
                                 if (!dCtx.mounted) return;
                                 Navigator.pop(dCtx);
@@ -1162,38 +1325,6 @@ class StudentRequestDialog {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  static Widget _sLabel(String text, Color color) => Text(
-    text,
-    style: GoogleFonts.inter(
-      color: color,
-      fontSize: 10,
-      fontWeight: FontWeight.w700,
-      letterSpacing: 1.2,
-    ),
-  );
-
-  static Widget _fld(
-    TextEditingController ctrl,
-    String label,
-    Color txtP,
-    Color txtM, {
-    TextInputType? keyboardType,
-  }) {
-    return TextField(
-      controller: ctrl,
-      style: TextStyle(color: txtP, fontSize: 13),
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(color: txtM, fontSize: 12),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 12,
         ),
       ),
     );
