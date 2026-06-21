@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "904063427068",
+    "project_id": "atl-inventory-gc-project",
+    "storage_bucket": "atl-inventory-gc-project.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:904063427068:android:9841df3aa6c196819d5279",
+        "android_client_info": {
+          "package_name": "com.example.atl_inventory"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB11jNa6tfu0UOsLPsfAiuvxbWRiLLDHQk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
