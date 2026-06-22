@@ -1,10 +1,10 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../main.dart';
 import 'login_screen.dart';
-import 'student_auth_screen.dart';
 import 'student_profile_screen.dart';
 
 class StudentHomeScreen extends StatefulWidget {
@@ -61,27 +61,23 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           .select()
           .eq('id', user.id)
           .maybeSingle();
+      final cartData = await _supabase
+          .from('cart_items')
+          .select()
+          .eq('student_id', user.id);
       final requests = await _supabase
           .from('requests')
           .select()
           .order('request_date', ascending: false);
 
-      // Load cart from Supabase
-      final cartData = await _supabase
-          .from('cart_items')
-          .select()
-          .eq('student_id', user.id);
-
       if (!mounted) return;
       setState(() {
         _parts = List<Map<String, dynamic>>.from(parts);
         _profile = profile;
-        _requests = List<Map<String, dynamic>>.from(requests)
-            .where(
-              (r) => r['student_id'] == user.id || _matchesProfile(r, profile),
-            )
-            .toList();
         _cart = List<Map<String, dynamic>>.from(cartData);
+        _requests = List<Map<String, dynamic>>.from(
+          requests,
+        ).where((r) => _matchesProfile(r, profile)).toList();
         _loading = false;
       });
     } catch (_) {
@@ -130,7 +126,27 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       await _supabase.from('cart_items').insert(newItem);
       setState(() => _cart.add(newItem));
     }
-    _snack('Added to cart ✓', color: _accent);
+  }
+
+  Future<void> _removeFromCart(Map<String, dynamic> part) async {
+    final existing = _cart.indexWhere((c) => c['part_id'] == part['id']);
+    if (existing < 0) return;
+
+    final currentQty = (_cart[existing]['qty'] as num).toInt();
+    if (currentQty <= 1) {
+      await _supabase
+          .from('cart_items')
+          .delete()
+          .eq('id', _cart[existing]['id']);
+      setState(() => _cart.removeAt(existing));
+    } else {
+      final newQty = currentQty - 1;
+      await _supabase
+          .from('cart_items')
+          .update({'qty': newQty})
+          .eq('id', _cart[existing]['id']);
+      setState(() => _cart[existing]['qty'] = newQty);
+    }
   }
 
   Future<void> _updateCartQty(Map<String, dynamic> cartItem, int delta) async {
@@ -154,7 +170,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     setState(() => _cart.clear());
   }
 
-  // ── Submit request ─────────────────────────────────────────────────────────
   Future<void> _submitRequest() async {
     if (_cart.isEmpty) return;
     if (_profile == null) {
@@ -186,7 +201,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
 
     await _clearCart();
     _snack('Request sent! Admin will review it ✓', color: _accent);
-    setState(() => _currentTab = 3);
+    setState(() => _currentTab = 1);
     _fetchAll();
   }
 
@@ -194,6 +209,12 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), backgroundColor: color ?? _card),
     );
+  }
+
+  int _cartQtyFor(String partId) {
+    final item = _cart.where((c) => c['part_id'] == partId).toList();
+    if (item.isEmpty) return 0;
+    return (item.first['qty'] as num).toInt();
   }
 
   @override
@@ -212,20 +233,14 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 _HomeTab(
                   parts: _parts,
                   cart: _cart,
-                  onAddToCart: _addToCart,
                   profile: _profile,
                   isDark: _isDark,
-                  onTabChange: (i) => setState(() => _currentTab = i),
-                ),
-                _SearchTab(
-                  parts: _parts,
-                  cart: _cart,
-                  onAddToCart: _addToCart,
-                  isDark: _isDark,
+                  cartQtyFor: _cartQtyFor,
+                  onAdd: _addToCart,
+                  onRemove: _removeFromCart,
                 ),
                 _CartTab(
                   cart: _cart,
-                  parts: _parts,
                   onUpdateQty: _updateCartQty,
                   onSubmit: _submitRequest,
                   isDark: _isDark,
@@ -235,12 +250,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   profile: _profile,
                   isDark: _isDark,
                   onLogout: () async {
-                    await Supabase.instance.client.auth.signOut(
-                      scope: SignOutScope.local,
-                    );
-
-                    if (!context.mounted) return;
-
+                    await _supabase.auth.signOut(scope: SignOutScope.local);
+                    if (!mounted) return;
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -269,13 +280,9 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           type: BottomNavigationBarType.fixed,
           items: [
             const BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home_rounded),
-              label: 'Home',
-            ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.search_outlined),
-              label: 'Search',
+              icon: Icon(Icons.inventory_2_outlined),
+              activeIcon: Icon(Icons.inventory_2_rounded),
+              label: 'Components',
             ),
             BottomNavigationBarItem(
               icon: Stack(
@@ -327,390 +334,40 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Home Tab
+//  Home Tab — inventory grid with search + category chips
 // ─────────────────────────────────────────────────────────────────────────────
-class _HomeTab extends StatelessWidget {
+class _HomeTab extends StatefulWidget {
   final List<Map<String, dynamic>> parts;
   final List<Map<String, dynamic>> cart;
-  final Future<void> Function(Map<String, dynamic>) onAddToCart;
   final Map<String, dynamic>? profile;
   final bool isDark;
-  final void Function(int) onTabChange;
+  final int Function(String) cartQtyFor;
+  final Future<void> Function(Map<String, dynamic>) onAdd;
+  final Future<void> Function(Map<String, dynamic>) onRemove;
 
   const _HomeTab({
     required this.parts,
     required this.cart,
-    required this.onAddToCart,
     required this.profile,
     required this.isDark,
-    required this.onTabChange,
-  });
-
-  Color get _bg => isDark ? AppColors.background : AppColorsLight.background;
-  Color get _surf => isDark ? AppColors.surface : AppColorsLight.surface;
-  Color get _card => isDark ? AppColors.card : AppColorsLight.card;
-  Color get _border => isDark ? AppColors.border : AppColorsLight.border;
-  Color get _accent => isDark ? AppColors.accent : AppColorsLight.accent;
-  Color get _txtP =>
-      isDark ? AppColors.textPrimary : AppColorsLight.textPrimary;
-  Color get _txtM => isDark ? AppColors.textMuted : AppColorsLight.textMuted;
-
-  List<String> get _categories {
-    final cats =
-        parts
-            .map((p) => (p['category'] as String? ?? '').trim())
-            .where((c) => c.isNotEmpty)
-            .toSet()
-            .toList()
-          ..sort();
-    return cats;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final firstName = (profile?['full_name'] as String? ?? 'Student')
-        .split(' ')
-        .first;
-    final popular = parts
-        .where((p) => ((p['availability'] as num?)?.toInt() ?? 0) > 0)
-        .take(6)
-        .toList();
-
-    return SafeArea(
-      child: CustomScrollView(
-        slivers: [
-          // ── Header ──────────────────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: Container(
-              color: _surf,
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Hello, $firstName 👋',
-                          style: GoogleFonts.inter(
-                            color: _txtP,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'What do you need today?',
-                          style: GoogleFonts.inter(color: _txtM, fontSize: 13),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Theme toggle
-                  IconButton(
-                    icon: Icon(
-                      isDark
-                          ? Icons.wb_sunny_outlined
-                          : Icons.nightlight_outlined,
-                      color: _txtM,
-                      size: 20,
-                    ),
-                    onPressed: () => themeNotifier.value = isDark
-                        ? ThemeMode.light
-                        : ThemeMode.dark,
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // ── Search bar ───────────────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: GestureDetector(
-              onTap: () => onTabChange(1),
-              child: Container(
-                margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: _surf,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _border),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.search, color: _txtM, size: 18),
-                    const SizedBox(width: 10),
-                    Text(
-                      'Search components...',
-                      style: GoogleFonts.inter(color: _txtM, fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // ── Categories ───────────────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Categories',
-                    style: GoogleFonts.inter(
-                      color: _txtP,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => onTabChange(1),
-                    child: Text(
-                      'View All',
-                      style: GoogleFonts.inter(
-                        color: _accent,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          SliverToBoxAdapter(
-            child: SizedBox(
-              height: 90,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                itemCount: _categories.length,
-                itemBuilder: (_, i) {
-                  final cat = _categories[i];
-                  final count = parts.where((p) => p['category'] == cat).length;
-                  return Container(
-                    width: 80,
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: _surf,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: _border),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.memory_outlined, color: _accent, size: 24),
-                        const SizedBox(height: 6),
-                        Text(
-                          cat,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.inter(
-                            color: _txtP,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          '$count items',
-                          style: GoogleFonts.inter(color: _txtM, fontSize: 9),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-
-          // ── Popular ──────────────────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Popular Components',
-                    style: GoogleFonts.inter(
-                      color: _txtP,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => onTabChange(1),
-                    child: Text(
-                      'View All',
-                      style: GoogleFonts.inter(
-                        color: _accent,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          SliverList(
-            delegate: SliverChildBuilderDelegate((_, i) {
-              final part = popular[i];
-              final avail = (part['availability'] as num?)?.toInt() ?? 0;
-              final imgUrl = part['image_url'] as String? ?? '';
-              final inCart = cart.any((c) => c['part_id'] == part['id']);
-
-              return Container(
-                margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: _surf,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: _border),
-                ),
-                child: Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: imgUrl.isNotEmpty
-                          ? Image.network(
-                              imgUrl,
-                              width: 56,
-                              height: 56,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => _placeholder(),
-                            )
-                          : _placeholder(),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            part['part_name'],
-                            style: GoogleFonts.inter(
-                              color: _txtP,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            part['category'] ?? '',
-                            style: GoogleFonts.inter(
-                              color: _txtM,
-                              fontSize: 11,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '$avail available',
-                            style: GoogleFonts.inter(
-                              color: avail > 0
-                                  ? _accent
-                                  : (isDark
-                                        ? AppColors.danger
-                                        : AppColorsLight.danger),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: avail > 0 ? () => onAddToCart(part) : null,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 7,
-                        ),
-                        decoration: BoxDecoration(
-                          color: avail > 0
-                              ? _accent.withOpacity(inCart ? 0.2 : 1)
-                              : _border,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          inCart ? 'Added' : 'Add to Cart',
-                          style: GoogleFonts.inter(
-                            color: avail > 0
-                                ? (inCart
-                                      ? _accent
-                                      : (isDark
-                                            ? AppColors.background
-                                            : Colors.white))
-                                : (isDark
-                                      ? AppColors.textMuted
-                                      : AppColorsLight.textMuted),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }, childCount: popular.length),
-          ),
-
-          const SliverToBoxAdapter(child: SizedBox(height: 20)),
-        ],
-      ),
-    );
-  }
-
-  Widget _placeholder() => Container(
-    width: 56,
-    height: 56,
-    color: isDark ? AppColors.card : AppColorsLight.card,
-    child: Icon(
-      Icons.memory_outlined,
-      color: isDark ? AppColors.textMuted : AppColorsLight.textMuted,
-      size: 24,
-    ),
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Search Tab
-// ─────────────────────────────────────────────────────────────────────────────
-class _SearchTab extends StatefulWidget {
-  final List<Map<String, dynamic>> parts;
-  final List<Map<String, dynamic>> cart;
-  final Future<void> Function(Map<String, dynamic>) onAddToCart;
-  final bool isDark;
-
-  const _SearchTab({
-    required this.parts,
-    required this.cart,
-    required this.onAddToCart,
-    required this.isDark,
+    required this.cartQtyFor,
+    required this.onAdd,
+    required this.onRemove,
   });
 
   @override
-  State<_SearchTab> createState() => _SearchTabState();
+  State<_HomeTab> createState() => _HomeTabState();
 }
 
-class _SearchTabState extends State<_SearchTab> {
-  final _ctrl = TextEditingController();
+class _HomeTabState extends State<_HomeTab> {
+  final _searchCtrl = TextEditingController();
   String _query = '';
   String _selectedCat = 'All';
 
   Color get _bg =>
       widget.isDark ? AppColors.background : AppColorsLight.background;
   Color get _surf => widget.isDark ? AppColors.surface : AppColorsLight.surface;
+  Color get _card => widget.isDark ? AppColors.card : AppColorsLight.card;
   Color get _border => widget.isDark ? AppColors.border : AppColorsLight.border;
   Color get _accent => widget.isDark ? AppColors.accent : AppColorsLight.accent;
   Color get _danger => widget.isDark ? AppColors.danger : AppColorsLight.danger;
@@ -741,9 +398,13 @@ class _SearchTabState extends State<_SearchTab> {
                 (p['part_name'] ?? '').toString().toLowerCase().contains(
                   _query.toLowerCase(),
                 ) ||
+                (p['serial_no'] ?? '').toString().toLowerCase().contains(
+                  _query.toLowerCase(),
+                ) ||
                 (p['category'] ?? '').toString().toLowerCase().contains(
                   _query.toLowerCase(),
-                ),
+                ) ||
+                (p['box_no'] ?? '').toString().contains(_query),
           )
           .toList();
     }
@@ -752,28 +413,103 @@ class _SearchTabState extends State<_SearchTab> {
 
   @override
   Widget build(BuildContext context) {
+    final firstName = (widget.profile?['full_name'] as String? ?? 'Student')
+        .split(' ')
+        .first;
+
     return SafeArea(
       child: Column(
         children: [
-          // ── Search bar ─────────────────────────────────────────────────
+          // ── Top bar ────────────────────────────────────────────────────
           Container(
             color: _surf,
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+            padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: _accent, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _accent.withOpacity(0.18),
+                        blurRadius: 10,
+                      ),
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: Image.asset(
+                      'lib/assets/logo.jpg',
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Center(
+                        child: Text(
+                          'ATL',
+                          style: GoogleFonts.inter(
+                            color: _accent,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Hello, $firstName 👋',
+                        style: GoogleFonts.inter(
+                          color: _txtP,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          height: 1.1,
+                        ),
+                      ),
+                      Text(
+                        'Browse & request components',
+                        style: GoogleFonts.inter(color: _txtM, fontSize: 10.5),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(
+                    widget.isDark
+                        ? Icons.wb_sunny_outlined
+                        : Icons.nightlight_outlined,
+                    color: _txtM,
+                    size: 19,
+                  ),
+                  onPressed: () => themeNotifier.value = widget.isDark
+                      ? ThemeMode.light
+                      : ThemeMode.dark,
+                ),
+              ],
+            ),
+          ),
+
+          // ── Search ─────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
             child: TextField(
-              controller: _ctrl,
-              style: TextStyle(color: _txtP),
-              autofocus: false,
+              controller: _searchCtrl,
+              style: TextStyle(color: _txtP, fontSize: 14),
               onChanged: (v) => setState(() => _query = v),
               decoration: InputDecoration(
-                hintText: 'Search components...',
+                hintText: 'Search by name, category, box no…',
                 hintStyle: TextStyle(color: _txtM, fontSize: 13),
-                prefixIcon: Icon(Icons.search, color: _txtM, size: 18),
+                prefixIcon: Icon(Icons.search, color: _txtM, size: 19),
                 suffixIcon: _query.isNotEmpty
                     ? IconButton(
-                        icon: Icon(Icons.clear, color: _txtM, size: 16),
+                        icon: Icon(Icons.clear, color: _txtM, size: 17),
                         onPressed: () => setState(() {
                           _query = '';
-                          _ctrl.clear();
+                          _searchCtrl.clear();
                         }),
                       )
                     : null,
@@ -781,39 +517,44 @@ class _SearchTabState extends State<_SearchTab> {
             ),
           ),
 
+          const SizedBox(height: 8),
+
           // ── Category chips ─────────────────────────────────────────────
           SizedBox(
-            height: 40,
+            height: 34,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
               itemCount: _categories.length,
               itemBuilder: (_, i) {
                 final cat = _categories[i];
                 final sel = cat == _selectedCat;
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedCat = cat),
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: sel ? _accent : _surf,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: sel ? _accent : _border),
-                    ),
-                    child: Text(
-                      cat,
-                      style: GoogleFonts.inter(
-                        color: sel
-                            ? (widget.isDark
-                                  ? AppColors.background
-                                  : Colors.white)
-                            : _txtM,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: GestureDetector(
+                    onTap: () => setState(() => _selectedCat = cat),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: sel ? _accent : _surf,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: sel ? _accent : _border),
+                      ),
+                      child: Text(
+                        cat,
+                        style: GoogleFonts.inter(
+                          color: sel
+                              ? (widget.isDark
+                                    ? AppColors.background
+                                    : Colors.white)
+                              : _txtM,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
@@ -822,109 +563,334 @@ class _SearchTabState extends State<_SearchTab> {
             ),
           ),
 
-          // ── Results ────────────────────────────────────────────────────
+          const SizedBox(height: 4),
+
+          // ── Grid ───────────────────────────────────────────────────────
           Expanded(
             child: _filtered.isEmpty
                 ? Center(
-                    child: Text(
-                      'No components found',
-                      style: GoogleFonts.inter(color: _txtM, fontSize: 14),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.inventory_2_outlined,
+                          color: _txtM,
+                          size: 52,
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          'No components found',
+                          style: GoogleFonts.inter(color: _txtM, fontSize: 15),
+                        ),
+                      ],
                     ),
                   )
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                : GridView.builder(
+                    padding: const EdgeInsets.fromLTRB(14, 8, 14, 96),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                          childAspectRatio: 0.78,
+                        ),
                     itemCount: _filtered.length,
                     itemBuilder: (_, i) {
                       final part = _filtered[i];
+                      final total = (part['total_parts'] as num?)?.toInt() ?? 0;
                       final avail =
                           (part['availability'] as num?)?.toInt() ?? 0;
-                      final imgUrl = part['image_url'] as String? ?? '';
-                      final inCart = widget.cart.any(
-                        (c) => c['part_id'] == part['id'],
-                      );
+                      final ratio = total > 0
+                          ? (avail / total).clamp(0.0, 1.0)
+                          : 0.0;
+                      final imgUrl = part['image_url'] as String?;
+                      final cartQty = widget.cartQtyFor(part['id'] as String);
+
+                      final Color statusColor = ratio > 0.5
+                          ? _accent
+                          : ratio > 0.2
+                          ? (widget.isDark
+                                ? AppColors.warning
+                                : AppColorsLight.warning)
+                          : _danger;
 
                       return Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: _surf,
+                          color: _card,
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(color: _border),
-                        ),
-                        child: Row(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: imgUrl.isNotEmpty
-                                  ? Image.network(
-                                      imgUrl,
-                                      width: 56,
-                                      height: 56,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) =>
-                                          _placeholder(),
-                                    )
-                                  : _placeholder(),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    part['part_name'],
-                                    style: GoogleFonts.inter(
-                                      color: _txtP,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  Text(
-                                    part['category'] ?? '',
-                                    style: GoogleFonts.inter(
-                                      color: _txtM,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Box ${part['box_no'] ?? '-'} · $avail available',
-                                    style: GoogleFonts.inter(
-                                      color: avail > 0 ? _accent : _danger,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                          boxShadow: widget.isDark
+                              ? []
+                              : [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.06),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
                                   ),
                                 ],
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: avail > 0
-                                  ? () => widget.onAddToCart(part)
-                                  : null,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 7,
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // ── Image ───────────────────────────────────
+                            Stack(
+                              children: [
+                                SizedBox(
+                                  height: 130,
+                                  width: double.infinity,
+                                  child: imgUrl != null && imgUrl.isNotEmpty
+                                      ? Image.network(
+                                          imgUrl,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) =>
+                                              _placeholder(),
+                                        )
+                                      : _placeholder(),
                                 ),
-                                decoration: BoxDecoration(
-                                  color: avail > 0
-                                      ? _accent.withOpacity(inCart ? 0.2 : 1)
-                                      : _border,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  inCart ? 'Added' : 'Add',
-                                  style: GoogleFonts.inter(
-                                    color: avail > 0
-                                        ? (inCart
-                                              ? _accent
-                                              : (widget.isDark
-                                                    ? AppColors.background
-                                                    : Colors.white))
-                                        : _txtM,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
+                                if ((part['condition'] as String?) != null &&
+                                    part['condition'] != 'Good')
+                                  Positioned(
+                                    top: 7,
+                                    right: 7,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: part['condition'] == 'Damaged'
+                                            ? _danger.withOpacity(0.85)
+                                            : const Color(
+                                                0xFFFFB300,
+                                              ).withOpacity(0.85),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        part['condition'],
+                                        style: GoogleFonts.inter(
+                                          color: Colors.white,
+                                          fontSize: 8.5,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
                                   ),
+
+                                // ── Cart button bottom-right ─────────────
+                                Positioned(
+                                  bottom: 8,
+                                  right: 8,
+                                  child: cartQty == 0
+                                      ? GestureDetector(
+                                          onTap: avail > 0
+                                              ? () => widget.onAdd(part)
+                                              : null,
+                                          child: Container(
+                                            width: 30,
+                                            height: 30,
+                                            decoration: BoxDecoration(
+                                              color: avail > 0
+                                                  ? _accent
+                                                  : _border,
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black
+                                                      .withOpacity(0.2),
+                                                  blurRadius: 4,
+                                                ),
+                                              ],
+                                            ),
+                                            child: Icon(
+                                              Icons.add,
+                                              color: avail > 0
+                                                  ? (widget.isDark
+                                                        ? AppColors.background
+                                                        : Colors.white)
+                                                  : _txtM,
+                                              size: 18,
+                                            ),
+                                          ),
+                                        )
+                                      : Container(
+                                          decoration: BoxDecoration(
+                                            color: _accent,
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(
+                                                  0.2,
+                                                ),
+                                                blurRadius: 4,
+                                              ),
+                                            ],
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              GestureDetector(
+                                                onTap: () =>
+                                                    widget.onRemove(part),
+                                                child: Container(
+                                                  width: 28,
+                                                  height: 28,
+                                                  child: Icon(
+                                                    Icons.remove,
+                                                    color: widget.isDark
+                                                        ? AppColors.background
+                                                        : Colors.white,
+                                                    size: 14,
+                                                  ),
+                                                ),
+                                              ),
+                                              Text(
+                                                '$cartQty',
+                                                style: TextStyle(
+                                                  color: widget.isDark
+                                                      ? AppColors.background
+                                                      : Colors.white,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                              ),
+                                              GestureDetector(
+                                                onTap: avail > cartQty
+                                                    ? () => widget.onAdd(part)
+                                                    : null,
+                                                child: Container(
+                                                  width: 28,
+                                                  height: 28,
+                                                  child: Icon(
+                                                    Icons.add,
+                                                    color: widget.isDark
+                                                        ? AppColors.background
+                                                        : Colors.white,
+                                                    size: 14,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                ),
+                              ],
+                            ),
+
+                            // ── Info ────────────────────────────────────
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  10,
+                                  5,
+                                  10,
+                                  5,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          part['part_name'] ?? 'Unnamed',
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.inter(
+                                            color: _txtP,
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w700,
+                                            height: 1.25,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Row(
+                                          children: [
+                                            if ((part['category'] as String? ??
+                                                    '')
+                                                .isNotEmpty) ...[
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 5,
+                                                      vertical: 1.5,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: _accent.withOpacity(
+                                                    0.1,
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(4),
+                                                ),
+                                                child: Text(
+                                                  part['category'],
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: GoogleFonts.inter(
+                                                    color: _accent,
+                                                    fontSize: 9.5,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 5),
+                                            ],
+                                            Text(
+                                              'Box ${part['box_no'] ?? '-'}',
+                                              style: GoogleFonts.inter(
+                                                color: _txtM,
+                                                fontSize: 9.5,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                    Row(
+                                      children: [
+                                        SizedBox(
+                                          width: 32,
+                                          height: 32,
+                                          child: CustomPaint(
+                                            painter: _ArcPainter(
+                                              ratio,
+                                              statusColor,
+                                              _border,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 7),
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              '$avail / $total',
+                                              style: GoogleFonts.inter(
+                                                color: statusColor,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                            Text(
+                                              'available',
+                                              style: GoogleFonts.inter(
+                                                color: _txtM,
+                                                fontSize: 9,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
@@ -940,10 +906,8 @@ class _SearchTabState extends State<_SearchTab> {
   }
 
   Widget _placeholder() => Container(
-    width: 56,
-    height: 56,
-    color: widget.isDark ? AppColors.card : AppColorsLight.card,
-    child: Icon(Icons.memory_outlined, color: _txtM, size: 24),
+    color: widget.isDark ? AppColors.surface : AppColorsLight.surface,
+    child: Center(child: Icon(Icons.memory_outlined, color: _txtM, size: 32)),
   );
 }
 
@@ -952,25 +916,21 @@ class _SearchTabState extends State<_SearchTab> {
 // ─────────────────────────────────────────────────────────────────────────────
 class _CartTab extends StatelessWidget {
   final List<Map<String, dynamic>> cart;
-  final List<Map<String, dynamic>> parts;
   final Future<void> Function(Map<String, dynamic>, int) onUpdateQty;
   final Future<void> Function() onSubmit;
   final bool isDark;
 
   const _CartTab({
     required this.cart,
-    required this.parts,
     required this.onUpdateQty,
     required this.onSubmit,
     required this.isDark,
   });
 
-  Color get _bg => isDark ? AppColors.background : AppColorsLight.background;
   Color get _surf => isDark ? AppColors.surface : AppColorsLight.surface;
   Color get _card => isDark ? AppColors.card : AppColorsLight.card;
   Color get _border => isDark ? AppColors.border : AppColorsLight.border;
   Color get _accent => isDark ? AppColors.accent : AppColorsLight.accent;
-  Color get _danger => isDark ? AppColors.danger : AppColorsLight.danger;
   Color get _txtP =>
       isDark ? AppColors.textPrimary : AppColorsLight.textPrimary;
   Color get _txtM => isDark ? AppColors.textMuted : AppColorsLight.textMuted;
@@ -980,7 +940,6 @@ class _CartTab extends StatelessWidget {
     return SafeArea(
       child: Column(
         children: [
-          // ── Header ────────────────────────────────────────────────────
           Container(
             color: _surf,
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
@@ -1018,8 +977,6 @@ class _CartTab extends StatelessWidget {
               ],
             ),
           ),
-
-          // ── Cart items ─────────────────────────────────────────────────
           Expanded(
             child: cart.isEmpty
                 ? Center(
@@ -1050,8 +1007,7 @@ class _CartTab extends StatelessWidget {
                     itemBuilder: (_, i) {
                       final item = cart[i];
                       final imgUrl = item['image_url'] as String? ?? '';
-                      final qty = item['qty'] as int;
-
+                      final qty = (item['qty'] as num).toInt();
                       return Container(
                         margin: const EdgeInsets.only(bottom: 10),
                         padding: const EdgeInsets.all(12),
@@ -1077,21 +1033,15 @@ class _CartTab extends StatelessWidget {
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item['part_name'],
-                                    style: GoogleFonts.inter(
-                                      color: _txtP,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ],
+                              child: Text(
+                                item['part_name'],
+                                style: GoogleFonts.inter(
+                                  color: _txtP,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
-                            // Qty controls
                             Row(
                               children: [
                                 GestureDetector(
@@ -1150,8 +1100,6 @@ class _CartTab extends StatelessWidget {
                     },
                   ),
           ),
-
-          // ── Submit button ──────────────────────────────────────────────
           if (cart.isNotEmpty)
             Container(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
@@ -1200,9 +1148,7 @@ class _RequestsTab extends StatelessWidget {
 
   const _RequestsTab({required this.requests, required this.isDark});
 
-  Color get _bg => isDark ? AppColors.background : AppColorsLight.background;
   Color get _surf => isDark ? AppColors.surface : AppColorsLight.surface;
-  Color get _card => isDark ? AppColors.card : AppColorsLight.card;
   Color get _border => isDark ? AppColors.border : AppColorsLight.border;
   Color get _accent => isDark ? AppColors.accent : AppColorsLight.accent;
   Color get _danger => isDark ? AppColors.danger : AppColorsLight.danger;
@@ -1360,7 +1306,7 @@ class _RequestsTab extends StatelessWidget {
                               Padding(
                                 padding: const EdgeInsets.only(top: 6),
                                 child: Text(
-                                  'Seller is on the way.',
+                                  'Accepted — Admin will bring it to you.',
                                   style: GoogleFonts.inter(
                                     color: _accent,
                                     fontSize: 11,
@@ -1395,7 +1341,6 @@ class _ProfileTab extends StatelessWidget {
   });
 
   Color get _surf => isDark ? AppColors.surface : AppColorsLight.surface;
-  Color get _card => isDark ? AppColors.card : AppColorsLight.card;
   Color get _border => isDark ? AppColors.border : AppColorsLight.border;
   Color get _accent => isDark ? AppColors.accent : AppColorsLight.accent;
   Color get _danger => isDark ? AppColors.danger : AppColorsLight.danger;
@@ -1411,7 +1356,6 @@ class _ProfileTab extends StatelessWidget {
         child: Column(
           children: [
             const SizedBox(height: 20),
-            // ── Avatar ──────────────────────────────────────────────────
             Container(
               width: 80,
               height: 80,
@@ -1446,8 +1390,6 @@ class _ProfileTab extends StatelessWidget {
               style: GoogleFonts.inter(color: _txtM, fontSize: 12),
             ),
             const SizedBox(height: 24),
-
-            // ── Info cards ───────────────────────────────────────────────
             if (profile != null) ...[
               _infoCard(
                 'Class',
@@ -1456,10 +1398,7 @@ class _ProfileTab extends StatelessWidget {
               _infoCard('Roll No', profile!['roll_no']),
               _infoCard('Phone', profile!['phone_no']),
             ],
-
             const SizedBox(height: 24),
-
-            // ── Edit profile ─────────────────────────────────────────────
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
@@ -1477,8 +1416,6 @@ class _ProfileTab extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-
-            // ── Logout ───────────────────────────────────────────────────
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
@@ -1496,29 +1433,73 @@ class _ProfileTab extends StatelessWidget {
     );
   }
 
-  Widget _infoCard(String label, String value) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: _surf,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _border),
-      ),
-      child: Row(
-        children: [
-          Text(label, style: GoogleFonts.inter(color: _txtM, fontSize: 12)),
-          const Spacer(),
-          Text(
-            value,
-            style: GoogleFonts.inter(
-              color: _txtP,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
+  Widget _infoCard(String label, String value) => Container(
+    margin: const EdgeInsets.only(bottom: 10),
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    decoration: BoxDecoration(
+      color: _surf,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: _border),
+    ),
+    child: Row(
+      children: [
+        Text(label, style: GoogleFonts.inter(color: _txtM, fontSize: 12)),
+        const Spacer(),
+        Text(
+          value,
+          style: GoogleFonts.inter(
+            color: _txtP,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
           ),
-        ],
-      ),
+        ),
+      ],
+    ),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Arc painter
+// ─────────────────────────────────────────────────────────────────────────────
+class _ArcPainter extends CustomPainter {
+  final double ratio;
+  final Color color;
+  final Color bgColor;
+  const _ArcPainter(this.ratio, this.color, this.bgColor);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = Offset(size.width / 2, size.height / 2);
+    final r = size.width / 2 - 2.5;
+    final bgPaint = Paint()
+      ..color = bgColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+    final fgPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(
+      Rect.fromCircle(center: c, radius: r),
+      -math.pi / 2,
+      2 * math.pi,
+      false,
+      bgPaint,
     );
+    if (ratio > 0) {
+      canvas.drawArc(
+        Rect.fromCircle(center: c, radius: r),
+        -math.pi / 2,
+        2 * math.pi * ratio.clamp(0.0, 0.999),
+        false,
+        fgPaint,
+      );
+    }
   }
+
+  @override
+  bool shouldRepaint(covariant _ArcPainter old) =>
+      old.ratio != ratio || old.color != color;
 }
