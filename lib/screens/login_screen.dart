@@ -30,7 +30,9 @@ class LoginScreen extends StatelessWidget {
         .eq('key', 'admin_password');
   }
 
-  void _studentLogin(BuildContext context) {
+  void _studentLogin(BuildContext context) async {
+    await Supabase.instance.client.auth.signOut(scope: SignOutScope.local);
+    if (!context.mounted) return;
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const StudentAuthScreen()),
