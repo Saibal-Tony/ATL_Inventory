@@ -4,15 +4,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/splash_screen.dart';
 
-// ─── Supabase credentials ─────────────────────────────────────────────────────
 const kSupabaseUrl = 'https://prtdtgxrflklxribomoy.supabase.co';
 const kSupabaseAnonKey =
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBydGR0Z3hyZmxrbHhyaWJvbW95Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzIxNzEsImV4cCI6MjA5Njg0ODE3MX0.NhOd5liN3rU-3OI6rFMZxXetBHe_3HSmT1t-POoxDE0';
 
-// ─── Global theme notifier (access from anywhere) ─────────────────────────────
 final themeNotifier = ValueNotifier<ThemeMode>(ThemeMode.dark);
 
-// ─── Dark palette ─────────────────────────────────────────────────────────────
 class AppColors {
   static const background = Color(0xFF0D1117);
   static const surface = Color(0xFF161B27);
@@ -25,7 +22,6 @@ class AppColors {
   static const textMuted = Color(0xFF8892A4);
 }
 
-// ─── Light palette ────────────────────────────────────────────────────────────
 class AppColorsLight {
   static const background = Color(0xFFF4F6FA);
   static const surface = Color(0xFFFFFFFF);
@@ -38,7 +34,6 @@ class AppColorsLight {
   static const textMuted = Color(0xFF64748B);
 }
 
-// ─── Entry point ─────────────────────────────────────────────────────────────
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -65,12 +60,8 @@ class ATLInventoryApp extends StatelessWidget {
         final isDark = mode == ThemeMode.dark;
         SystemChrome.setSystemUIOverlayStyle(
           SystemUiOverlayStyle(
-            statusBarIconBrightness: isDark
-                ? Brightness.light
-                : Brightness.dark,
-            systemNavigationBarColor: isDark
-                ? AppColors.background
-                : AppColorsLight.background,
+            statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+            systemNavigationBarColor: isDark ? AppColors.background : AppColorsLight.background,
           ),
         );
 
@@ -95,7 +86,6 @@ class ATLInventoryApp extends StatelessWidget {
     final txtP = dark ? AppColors.textPrimary : AppColorsLight.textPrimary;
     final txtM = dark ? AppColors.textMuted : AppColorsLight.textMuted;
     final danger = dark ? AppColors.danger : AppColorsLight.danger;
-
     final base = dark ? ThemeData.dark() : ThemeData.light();
 
     return base.copyWith(
@@ -111,41 +101,23 @@ class ATLInventoryApp extends StatelessWidget {
         surface: surface,
         onSurface: txtP,
       ),
-      textTheme: GoogleFonts.interTextTheme(
-        base.textTheme,
-      ).apply(bodyColor: txtP, displayColor: txtP),
+      textTheme: GoogleFonts.interTextTheme(base.textTheme).apply(bodyColor: txtP, displayColor: txtP),
       appBarTheme: AppBarTheme(
         backgroundColor: surface,
         elevation: 0,
         centerTitle: false,
         iconTheme: IconThemeData(color: txtM),
-        titleTextStyle: GoogleFonts.inter(
-          color: txtP,
-          fontSize: 18,
-          fontWeight: FontWeight.w700,
-        ),
+        titleTextStyle: GoogleFonts.inter(color: txtP, fontSize: 18, fontWeight: FontWeight.w700),
       ),
       cardColor: cardC,
       dividerColor: border,
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: cardC,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: accent, width: 1.5),
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: border)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: border)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: accent, width: 1.5)),
         labelStyle: TextStyle(color: txtM),
         hintStyle: TextStyle(color: txtM),
       ),
@@ -153,28 +125,18 @@ class ATLInventoryApp extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           backgroundColor: accent,
           foregroundColor: dark ? AppColors.background : Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          textStyle: GoogleFonts.inter(
-            fontWeight: FontWeight.w700,
-            fontSize: 14,
-          ),
+          textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 14),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: txtM,
           side: BorderSide(color: border),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          textStyle: GoogleFonts.inter(
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-          ),
+          textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
         ),
       ),
       snackBarTheme: SnackBarThemeData(

@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../main.dart';
 import 'login_screen.dart';
+import 'student_home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -24,43 +26,64 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
 
-    _logoCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 750),
-    );
-    _textCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 550),
-    );
+    _logoCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 750));
+    _textCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 550));
 
-    _logoScale = Tween<double>(
-      begin: 0.45,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _logoCtrl, curve: Curves.elasticOut));
-    _logoFade = CurvedAnimation(
-      parent: _logoCtrl,
-      curve: const Interval(0, 0.5),
-    );
+    _logoScale = Tween<double>(begin: 0.45, end: 1.0)
+        .animate(CurvedAnimation(parent: _logoCtrl, curve: Curves.elasticOut));
+    _logoFade = CurvedAnimation(parent: _logoCtrl, curve: const Interval(0, 0.5));
     _textFade = CurvedAnimation(parent: _textCtrl, curve: Curves.easeIn);
-    _textSlide = Tween<Offset>(
-      begin: const Offset(0, 0.25),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _textCtrl, curve: Curves.easeOutCubic));
+    _textSlide = Tween<Offset>(begin: const Offset(0, 0.25), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _textCtrl, curve: Curves.easeOutCubic));
 
     _logoCtrl.forward().then((_) => _textCtrl.forward());
 
     Timer(const Duration(milliseconds: 2600), () {
       if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (_, __, ___) => const LoginScreen(),
-          transitionsBuilder: (_, anim, __, child) =>
-              FadeTransition(opacity: anim, child: child),
-          transitionDuration: const Duration(milliseconds: 450),
-        ),
-      );
+      _navigateNext();
     });
+  }
+
+  Future<void> _navigateNext() async {
+    final supabase = Supabase.instance.client;
+    final session = supabase.auth.currentSession;
+
+    if (session != null) {
+      // User is already logged in — check if student profile exists
+      try {
+        final profile = await supabase
+            .from('student_profiles')
+            .select('id')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
+        if (!mounted) return;
+
+        if (profile != null) {
+          // Has profile → go to student home
+          Navigator.pushReplacement(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (_, __, ___) => const StudentHomeScreen(),
+              transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
+              transitionDuration: const Duration(milliseconds: 450),
+            ),
+          );
+          return;
+        }
+      } catch (_) {}
+    }
+
+    // No session or no student profile → go to main login
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => const LoginScreen(),
+        transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
+        transitionDuration: const Duration(milliseconds: 450),
+      ),
+    );
   }
 
   @override
@@ -84,7 +107,6 @@ class _SplashScreenState extends State<SplashScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // ── Logo with glow ring ───────────────────────────────────────
             ScaleTransition(
               scale: _logoScale,
               child: FadeTransition(
@@ -92,61 +114,32 @@ class _SplashScreenState extends State<SplashScreen>
                 child: AnimatedBuilder(
                   animation: _logoCtrl,
                   builder: (_, child) => Container(
-                    width: 130,
-                    height: 130,
+                    width: 130, height: 130,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: surface,
                       border: Border.all(color: accent, width: 2),
-                      boxShadow: [
-                        BoxShadow(
-                          color: accent.withOpacity(0.4 * _logoCtrl.value),
-                          blurRadius: 42,
-                          spreadRadius: 6,
-                        ),
-                      ],
+                      boxShadow: [BoxShadow(color: accent.withOpacity(0.4 * _logoCtrl.value), blurRadius: 42, spreadRadius: 6)],
                     ),
                     child: child,
                   ),
                   child: ClipOval(
-                    child: Image.asset(
-                      'lib/assets/logo.jpg',
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _fallbackLogo(accent),
-                    ),
+                    child: Image.asset('lib/assets/logo.jpg', fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _fallbackLogo(accent)),
                   ),
                 ),
               ),
             ),
-
             const SizedBox(height: 28),
-
-            // ── Title ─────────────────────────────────────────────────────
             SlideTransition(
               position: _textSlide,
               child: FadeTransition(
                 opacity: _textFade,
                 child: Column(
                   children: [
-                    Text(
-                      'ATL Inventory',
-                      style: GoogleFonts.inter(
-                        color: txtP,
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
+                    Text('ATL Inventory', style: GoogleFonts.inter(color: txtP, fontSize: 30, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
                     const SizedBox(height: 6),
-                    Text(
-                      'ATAL TINKERING LAB',
-                      style: GoogleFonts.inter(
-                        color: accent,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 3,
-                      ),
-                    ),
+                    Text('ATAL TINKERING LAB', style: GoogleFonts.inter(color: accent, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 3)),
                   ],
                 ),
               ),
@@ -157,17 +150,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  Widget _fallbackLogo(Color accent) {
-    return Center(
-      child: Text(
-        'ATL',
-        style: GoogleFonts.inter(
-          color: accent,
-          fontSize: 26,
-          fontWeight: FontWeight.w900,
-          letterSpacing: -1,
-        ),
-      ),
-    );
-  }
+  Widget _fallbackLogo(Color accent) => Center(
+    child: Text('ATL', style: GoogleFonts.inter(color: accent, fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: -1)),
+  );
 }
