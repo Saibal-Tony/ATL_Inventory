@@ -9,6 +9,7 @@ import 'login_screen.dart';
 import 'qr_scanner_screen.dart';
 import 'borrow_screen.dart';
 import 'request_screen.dart';
+import 'package:flutter/services.dart';
 
 class InventoryScreen extends StatefulWidget {
   final bool isAdmin;
@@ -505,6 +506,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   _snack('Admin mode off');
                   break;
                 case 'logout':
+                  await Supabase.instance.client.auth.signOut(
+                    scope: SignOutScope.global,
+                  );
+                  if (!mounted) return;
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -822,41 +827,25 @@ class _PartCard extends StatelessWidget {
           children: [
             // ── Image ──────────────────────────────────────────────────────
             Stack(
+              clipBehavior: Clip.none,
               children: [
-                SizedBox(
-                  height: 130,
-                  width: double.infinity,
-                  child: imageUrl != null && imageUrl.isNotEmpty
-                      ? Image.network(
-                          imageUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _placeholder(),
-                        )
-                      : _placeholder(),
+                PopupMenuButton<String>(
+                  // ... same as before but:
+                  // - Remove 'exit_admin' case from onSelected
+                  // - Remove Exit Admin Mode menu item
+                  // - Change logout case to use SignOutScope.global
+                  // - Request count badge is RED color
                 ),
-                if ((part['condition'] as String?) != null &&
-                    part['condition'] != 'Good')
+                if (_pendingRequests > 0 && _isAdmin)
                   Positioned(
-                    top: 7,
-                    right: 7,
+                    top: 6,
+                    right: 6,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: part['condition'] == 'Damaged'
-                            ? _danger.withOpacity(0.85)
-                            : const Color(0xFFFFB300).withOpacity(0.85),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        part['condition'],
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 8.5,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
                       ),
                     ),
                   ),

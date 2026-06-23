@@ -31,7 +31,7 @@ class LoginScreen extends StatelessWidget {
   }
 
   void _studentLogin(BuildContext context) async {
-    await Supabase.instance.client.auth.signOut(scope: SignOutScope.local);
+    await Supabase.instance.client.auth.signOut(scope: SignOutScope.global);
     if (!context.mounted) return;
     Navigator.push(
       context,
