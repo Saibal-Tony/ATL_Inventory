@@ -256,7 +256,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   profile: _profile,
                   isDark: _isDark,
                   onLogout: () async {
-                    await _supabase.auth.signOut(scope: SignOutScope.local);
+                    await _supabase.auth.signOut(scope: SignOutScope.global);
                     if (!mounted) return;
                     Navigator.pushReplacement(
                       context,
