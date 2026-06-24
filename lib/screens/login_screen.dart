@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart';
 import 'inventory_screen.dart';
 import 'student_auth_screen.dart';
@@ -24,7 +25,11 @@ class LoginScreen extends StatelessWidget {
 
   // ── Student login — sign out globally first ────────────────────────────────
   void _studentLogin(BuildContext context) async {
-    await Supabase.instance.client.auth.signOut(scope: SignOutScope.global);
+    try {
+      await Supabase.instance.client.auth.signOut(scope: SignOutScope.global);
+    } catch (_) {}
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
     if (!context.mounted) return;
     Navigator.push(
       context,

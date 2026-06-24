@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../main.dart';
 import 'login_screen.dart';
@@ -256,7 +257,12 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   profile: _profile,
                   isDark: _isDark,
                   onLogout: () async {
-                    await _supabase.auth.signOut(scope: SignOutScope.global);
+                    try {
+                      await _supabase.auth.signOut(scope: SignOutScope.global);
+                    } catch (_) {}
+                    // Force clear local session cache
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.clear();
                     if (!mounted) return;
                     Navigator.pushReplacement(
                       context,
