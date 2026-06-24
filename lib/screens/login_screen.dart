@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../main.dart';
@@ -8,7 +9,6 @@ import 'student_auth_screen.dart';
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
-  // ── Fetch password from Supabase ──────────────────────────────────────────
   Future<String> _getPassword() async {
     try {
       final data = await Supabase.instance.client
@@ -18,18 +18,11 @@ class LoginScreen extends StatelessWidget {
           .single();
       return data['value'] as String? ?? 'aTal@2026';
     } catch (_) {
-      return 'aTal@2026'; // fallback if offline
+      return 'aTal@2026';
     }
   }
 
-  // ── Save password to Supabase ─────────────────────────────────────────────
-  Future<void> _savePassword(String pw) async {
-    await Supabase.instance.client
-        .from('app_settings')
-        .update({'value': pw})
-        .eq('key', 'admin_password');
-  }
-
+  // ── Student login — sign out globally first ────────────────────────────────
   void _studentLogin(BuildContext context) async {
     await Supabase.instance.client.auth.signOut(scope: SignOutScope.global);
     if (!context.mounted) return;
@@ -39,7 +32,7 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  // ── Normal admin login ─────────────────────────────────────────────────────
+  // ── Admin login ────────────────────────────────────────────────────────────
   void _adminLogin(BuildContext context) async {
     final currentPw = await _getPassword();
     final ctrl = TextEditingController();
@@ -155,7 +148,7 @@ class LoginScreen extends StatelessWidget {
 
   void _checkPw(BuildContext dCtx, BuildContext sCtx, String pw) async {
     Navigator.pop(dCtx);
-    final currentPw = await _getPassword(); // fetch fresh every time
+    final currentPw = await _getPassword();
     if (pw == currentPw) {
       Navigator.pushReplacement(
         sCtx,
@@ -171,7 +164,7 @@ class LoginScreen extends StatelessWidget {
     }
   }
 
-  // ── Long press — change password ──────────────────────────────────────────
+  // ── Long press — change password (with haptic) ─────────────────────────────
   void _changePassword(BuildContext context) async {
     final currentPw = await _getPassword();
     final oldCtrl = TextEditingController();
@@ -242,8 +235,6 @@ class LoginScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 22),
-
-                  // Current password
                   TextField(
                     controller: oldCtrl,
                     obscureText: obsOld,
@@ -263,8 +254,6 @@ class LoginScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 14),
-
-                  // New password
                   TextField(
                     controller: newCtrl,
                     obscureText: obsNew,
@@ -284,8 +273,6 @@ class LoginScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 14),
-
-                  // Confirm password
                   TextField(
                     controller: confirmCtrl,
                     obscureText: obsConfirm,
@@ -305,7 +292,6 @@ class LoginScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 22),
-
                   Row(
                     children: [
                       Expanded(
@@ -354,7 +340,10 @@ class LoginScreen extends StatelessWidget {
                                     return;
                                   }
                                   setD(() => saving = true);
-                                  await _savePassword(newCtrl.text);
+                                  await Supabase.instance.client
+                                      .from('app_settings')
+                                      .update({'value': newCtrl.text})
+                                      .eq('key', 'admin_password');
                                   if (!dCtx.mounted) return;
                                   Navigator.pop(dCtx);
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -407,6 +396,7 @@ class LoginScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ── Theme toggle ─────────────────────────────────────────────
               Align(
                 alignment: Alignment.centerRight,
                 child: GestureDetector(
@@ -450,6 +440,7 @@ class LoginScreen extends StatelessWidget {
 
               const Spacer(flex: 2),
 
+              // ── Branding ─────────────────────────────────────────────────
               Center(
                 child: Column(
                   children: [
@@ -520,7 +511,7 @@ class LoginScreen extends StatelessWidget {
               _RoleCard(
                 icon: Icons.school_outlined,
                 title: 'Student',
-                subtitle: 'Browse and search available components',
+                subtitle: 'Browse and request components',
                 accent: false,
                 onTap: () => _studentLogin(context),
                 onLongPress: null,
@@ -532,7 +523,10 @@ class LoginScreen extends StatelessWidget {
                 subtitle: 'Add, edit and manage inventory',
                 accent: true,
                 onTap: () => _adminLogin(context),
-                onLongPress: () => _changePassword(context),
+                onLongPress: () {
+                  HapticFeedback.heavyImpact(); // silent vibration
+                  _changePassword(context);
+                },
               ),
               const SizedBox(height: 32),
             ],

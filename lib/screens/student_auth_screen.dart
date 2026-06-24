@@ -28,7 +28,8 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
   Color get _border => _isDark ? AppColors.border : AppColorsLight.border;
   Color get _accent => _isDark ? AppColors.accent : AppColorsLight.accent;
   Color get _danger => _isDark ? AppColors.danger : AppColorsLight.danger;
-  Color get _txtP => _isDark ? AppColors.textPrimary : AppColorsLight.textPrimary;
+  Color get _txtP =>
+      _isDark ? AppColors.textPrimary : AppColorsLight.textPrimary;
   Color get _txtM => _isDark ? AppColors.textMuted : AppColorsLight.textMuted;
 
   @override
@@ -54,6 +55,7 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
 
   // ── Navigate after auth ────────────────────────────────────────────────────
   Future<void> _navigateAfterAuth(String userId) async {
+    // Sign out any existing admin session first (clean slate)
     final hasProfile = await _hasProfile(userId);
     if (!mounted) return;
     if (hasProfile) {
@@ -97,7 +99,8 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (_) => EmailVerifyScreen(email: _emailCtrl.text.trim()),
+                builder: (_) =>
+                    EmailVerifyScreen(email: _emailCtrl.text.trim()),
               ),
             );
           } else {
@@ -118,8 +121,10 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
   Future<void> _googleSignIn() async {
     setState(() => _loading = true);
     try {
-      const webClientId = '1006263888737-6e2hk96muhe23qk7i79u4pml24f7thru.apps.googleusercontent.com';
-      const androidClientId = '1006263888737-g3lltq3oe7ensi179ocks7je5hh49cun.apps.googleusercontent.com';
+      const webClientId =
+          '1006263888737-6e2hk96muhe23qk7i79u4pml24f7thru.apps.googleusercontent.com';
+      const androidClientId =
+          '1006263888737-g3lltq3oe7ensi179ocks7je5hh49cun.apps.googleusercontent.com';
 
       final GoogleSignIn googleSignIn = GoogleSignIn(
         clientId: androidClientId,
@@ -174,7 +179,11 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
             children: [
               // ── Back ──────────────────────────────────────────────────────
               IconButton(
-                icon: Icon(Icons.arrow_back_ios_new_rounded, color: _txtP, size: 20),
+                icon: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: _txtP,
+                  size: 20,
+                ),
                 onPressed: () => Navigator.pop(context),
                 padding: EdgeInsets.zero,
               ),
@@ -185,26 +194,52 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
                 child: Column(
                   children: [
                     Container(
-                      width: 80, height: 80,
+                      width: 80,
+                      height: 80,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: _surf,
                         border: Border.all(color: _accent, width: 2),
-                        boxShadow: [BoxShadow(color: _accent.withOpacity(0.25), blurRadius: 24, spreadRadius: 2)],
+                        boxShadow: [
+                          BoxShadow(
+                            color: _accent.withOpacity(0.25),
+                            blurRadius: 24,
+                            spreadRadius: 2,
+                          ),
+                        ],
                       ),
                       child: ClipOval(
-                        child: Image.asset('lib/assets/logo.jpg', fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Center(child: Text('ATL', style: GoogleFonts.inter(color: _accent, fontSize: 16, fontWeight: FontWeight.w900)))),
+                        child: Image.asset(
+                          'lib/assets/logo.jpg',
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Center(
+                            child: Text(
+                              'ATL',
+                              style: GoogleFonts.inter(
+                                color: _accent,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
                     Text(
                       _isLogin ? 'Welcome Back!' : 'Student Login',
-                      style: GoogleFonts.inter(color: _txtP, fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -0.5),
+                      style: GoogleFonts.inter(
+                        color: _txtP,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                      ),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      _isLogin ? 'Login to your account' : 'Choose how you want to continue',
+                      _isLogin
+                          ? 'Login to your account'
+                          : 'Choose how you want to continue',
                       style: GoogleFonts.inter(color: _txtM, fontSize: 13),
                     ),
                   ],
@@ -229,11 +264,20 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
                     children: [
                       Image.network(
                         'https://www.google.com/favicon.ico',
-                        width: 20, height: 20,
-                        errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 22),
+                        width: 20,
+                        height: 20,
+                        errorBuilder: (_, __, ___) =>
+                            const Icon(Icons.g_mobiledata, size: 22),
                       ),
                       const SizedBox(width: 10),
-                      Text('Continue with Google', style: GoogleFonts.inter(color: _txtP, fontSize: 14, fontWeight: FontWeight.w600)),
+                      Text(
+                        'Continue with Google',
+                        style: GoogleFonts.inter(
+                          color: _txtP,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -242,14 +286,19 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
               const SizedBox(height: 16),
 
               // ── Divider ────────────────────────────────────────────────────
-              Row(children: [
-                Expanded(child: Divider(color: _border)),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text('or', style: GoogleFonts.inter(color: _txtM, fontSize: 12)),
-                ),
-                Expanded(child: Divider(color: _border)),
-              ]),
+              Row(
+                children: [
+                  Expanded(child: Divider(color: _border)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      'or',
+                      style: GoogleFonts.inter(color: _txtM, fontSize: 12),
+                    ),
+                  ),
+                  Expanded(child: Divider(color: _border)),
+                ],
+              ),
 
               const SizedBox(height: 16),
 
@@ -260,7 +309,11 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
                 keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
                   labelText: 'Email',
-                  prefixIcon: Icon(Icons.email_outlined, color: _txtM, size: 18),
+                  prefixIcon: Icon(
+                    Icons.email_outlined,
+                    color: _txtM,
+                    size: 18,
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -274,7 +327,13 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
                   labelText: 'Password',
                   prefixIcon: Icon(Icons.lock_outline, color: _txtM, size: 18),
                   suffixIcon: IconButton(
-                    icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: _txtM, size: 18),
+                    icon: Icon(
+                      _obscure
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      color: _txtM,
+                      size: 18,
+                    ),
                     onPressed: () => setState(() => _obscure = !_obscure),
                   ),
                 ),
@@ -289,7 +348,14 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
                 child: ElevatedButton(
                   onPressed: _loading ? null : _emailAuth,
                   child: _loading
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
                       : Text(_isLogin ? 'Login' : 'Create Account'),
                 ),
               ),
@@ -305,12 +371,17 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
                       style: GoogleFonts.inter(fontSize: 13),
                       children: [
                         TextSpan(
-                          text: _isLogin ? "Don't have an account? " : 'Already have an account? ',
+                          text: _isLogin
+                              ? "Don't have an account? "
+                              : 'Already have an account? ',
                           style: TextStyle(color: _txtM),
                         ),
                         TextSpan(
                           text: _isLogin ? 'Sign up' : 'Login',
-                          style: TextStyle(color: _accent, fontWeight: FontWeight.w700),
+                          style: TextStyle(
+                            color: _accent,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ],
                     ),
@@ -351,16 +422,28 @@ class EmailVerifyScreen extends StatelessWidget {
             children: [
               // ── Icon ──────────────────────────────────────────────────────
               Container(
-                width: 100, height: 100,
+                width: 100,
+                height: 100,
                 decoration: BoxDecoration(
                   color: accent.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.mark_email_unread_outlined, color: _accent(isDark), size: 48),
+                child: Icon(
+                  Icons.mark_email_unread_outlined,
+                  color: _accent(isDark),
+                  size: 48,
+                ),
               ),
               const SizedBox(height: 28),
 
-              Text('Verify Your Email', style: GoogleFonts.inter(color: txtP, fontSize: 26, fontWeight: FontWeight.w800)),
+              Text(
+                'Verify Your Email',
+                style: GoogleFonts.inter(
+                  color: txtP,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
               const SizedBox(height: 12),
               Text(
                 'We have sent a verification link to',
@@ -371,7 +454,11 @@ class EmailVerifyScreen extends StatelessWidget {
               Text(
                 email,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(color: accent, fontSize: 14, fontWeight: FontWeight.w700),
+                style: GoogleFonts.inter(
+                  color: accent,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
@@ -392,7 +479,9 @@ class EmailVerifyScreen extends StatelessWidget {
                 child: OutlinedButton(
                   onPressed: () => Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (_) => const StudentAuthScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const StudentAuthScreen(),
+                    ),
                   ),
                   child: const Text('Back to Login'),
                 ),
@@ -404,7 +493,8 @@ class EmailVerifyScreen extends StatelessWidget {
     );
   }
 
-  Color _accent(bool isDark) => isDark ? AppColors.accent : AppColorsLight.accent;
+  Color _accent(bool isDark) =>
+      isDark ? AppColors.accent : AppColorsLight.accent;
 }
 
 class _ResendButton extends StatefulWidget {
@@ -425,29 +515,41 @@ class _ResendButtonState extends State<_ResendButton> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: _sending ? null : () async {
-          setState(() => _sending = true);
-          try {
-            await Supabase.instance.client.auth.resend(
-              type: OtpType.signup,
-              email: widget.email,
-            );
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: const Text('Verification email resent ✓'), backgroundColor: accent),
-              );
-            }
-          } catch (_) {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Failed to resend email')),
-              );
-            }
-          }
-          if (mounted) setState(() => _sending = false);
-        },
+        onPressed: _sending
+            ? null
+            : () async {
+                setState(() => _sending = true);
+                try {
+                  await Supabase.instance.client.auth.resend(
+                    type: OtpType.signup,
+                    email: widget.email,
+                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('Verification email resent ✓'),
+                        backgroundColor: accent,
+                      ),
+                    );
+                  }
+                } catch (_) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Failed to resend email')),
+                    );
+                  }
+                }
+                if (mounted) setState(() => _sending = false);
+              },
         child: _sending
-            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
             : const Text('Resend Email'),
       ),
     );

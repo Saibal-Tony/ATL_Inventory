@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../main.dart';
@@ -9,7 +10,6 @@ import 'login_screen.dart';
 import 'qr_scanner_screen.dart';
 import 'borrow_screen.dart';
 import 'request_screen.dart';
-import 'package:flutter/services.dart';
 
 class InventoryScreen extends StatefulWidget {
   final bool isAdmin;
@@ -21,7 +21,6 @@ class InventoryScreen extends StatefulWidget {
 
 class _InventoryScreenState extends State<InventoryScreen> {
   int _pendingRequests = 0;
-
   final _supabase = Supabase.instance.client;
 
   List<Map<String, dynamic>> _all = [];
@@ -42,8 +41,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   Color get _border => _isDark ? AppColors.border : AppColorsLight.border;
   Color get _accent => _isDark ? AppColors.accent : AppColorsLight.accent;
   Color get _danger => _isDark ? AppColors.danger : AppColorsLight.danger;
-  Color get _txtP =>
-      _isDark ? AppColors.textPrimary : AppColorsLight.textPrimary;
+  Color get _txtP => _isDark ? AppColors.textPrimary : AppColorsLight.textPrimary;
   Color get _txtM => _isDark ? AppColors.textMuted : AppColorsLight.textMuted;
 
   @override
@@ -87,10 +85,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
           .from('requests')
           .select()
           .eq('status', 'pending');
-      _pendingRequests = (reqs as List).length;
+
       if (!mounted) return;
       setState(() {
         _all = List<Map<String, dynamic>>.from(data);
+        _pendingRequests = (reqs as List).length;
         _rebuildCategories();
         _applyFilters();
         _loading = false;
@@ -101,13 +100,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   void _rebuildCategories() {
-    final cats =
-        _all
-            .map((p) => (p['category'] as String? ?? '').trim())
-            .where((c) => c.isNotEmpty)
-            .toSet()
-            .toList()
-          ..sort();
+    final cats = _all
+        .map((p) => (p['category'] as String? ?? '').trim())
+        .where((c) => c.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
     _categories = ['All', ...cats];
     if (!_categories.contains(_selectedCat)) _selectedCat = 'All';
   }
@@ -122,19 +120,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final q = _searchQuery.toLowerCase().trim();
     if (q.isNotEmpty) {
       list = list
-          .where(
-            (p) =>
-                (p['part_name'] ?? '').toString().toLowerCase().contains(q) ||
-                (p['serial_no'] ?? '').toString().toLowerCase().contains(q) ||
-                (p['category'] ?? '').toString().toLowerCase().contains(q) ||
-                (p['box_no'] ?? '').toString().contains(q),
-          )
+          .where((p) =>
+              (p['part_name'] ?? '').toString().toLowerCase().contains(q) ||
+              (p['serial_no'] ?? '').toString().toLowerCase().contains(q) ||
+              (p['category'] ?? '').toString().toLowerCase().contains(q) ||
+              (p['box_no'] ?? '').toString().contains(q))
           .toList();
     }
     _filtered = list;
   }
 
-  // ── Password ───────────────────────────────────────────────────────────────
   Future<String> _getPassword() async {
     try {
       final data = await _supabase
@@ -148,7 +143,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
     }
   }
 
-  // ── Admin toggle ───────────────────────────────────────────────────────────
   void _toggleAdmin() {
     if (_isAdmin) {
       setState(() => _isAdmin = false);
@@ -162,22 +156,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
       builder: (dCtx) => StatefulBuilder(
         builder: (dCtx, setD) => Dialog(
           backgroundColor: _surf,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  'Admin Mode',
-                  style: GoogleFonts.inter(
-                    color: _txtP,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                Text('Admin Mode', style: GoogleFonts.inter(color: _txtP, fontSize: 17, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 16),
                 TextField(
                   controller: ctrl,
@@ -187,13 +172,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   decoration: InputDecoration(
                     labelText: 'Password',
                     suffixIcon: IconButton(
-                      icon: Icon(
-                        obs
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        color: _txtM,
-                        size: 18,
-                      ),
+                      icon: Icon(obs ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: _txtM, size: 18),
                       onPressed: () => setD(() => obs = !obs),
                     ),
                   ),
@@ -226,7 +205,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
     }
   }
 
-  // ── Delete ─────────────────────────────────────────────────────────────────
   void _confirmDelete(Map<String, dynamic> part) {
     showDialog(
       context: context,
@@ -239,51 +217,25 @@ class _InventoryScreenState extends State<InventoryScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: _danger.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
+                width: 52, height: 52,
+                decoration: BoxDecoration(color: _danger.withOpacity(0.1), shape: BoxShape.circle),
                 child: Icon(Icons.delete_outline, color: _danger, size: 26),
               ),
               const SizedBox(height: 16),
-              Text(
-                'Delete Component?',
-                style: GoogleFonts.inter(
-                  color: _txtP,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+              Text('Delete Component?', style: GoogleFonts.inter(color: _txtP, fontSize: 17, fontWeight: FontWeight.w700)),
               const SizedBox(height: 6),
-              Text(
-                '"${part['part_name']}" will be removed permanently.',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(color: _txtM, fontSize: 13),
-              ),
+              Text('"${part['part_name']}" will be removed permanently.', textAlign: TextAlign.center, style: GoogleFonts.inter(color: _txtM, fontSize: 13)),
               const SizedBox(height: 24),
               Row(
                 children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(dCtx),
-                      child: const Text('Cancel'),
-                    ),
-                  ),
+                  Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(dCtx), child: const Text('Cancel'))),
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _danger,
-                        foregroundColor: Colors.white,
-                      ),
+                      style: ElevatedButton.styleFrom(backgroundColor: _danger, foregroundColor: Colors.white),
                       onPressed: () async {
                         Navigator.pop(dCtx);
-                        await _supabase
-                            .from('parts')
-                            .delete()
-                            .eq('id', part['id']);
+                        await _supabase.from('parts').delete().eq('id', part['id']);
                       },
                       child: const Text('Delete'),
                     ),
@@ -299,14 +251,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   void _snack(String msg, {Color? color}) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg, style: GoogleFonts.inter(color: _txtP)),
-        backgroundColor: color ?? _card,
-      ),
+      SnackBar(content: Text(msg, style: GoogleFonts.inter(color: _txtP)), backgroundColor: color ?? _card),
     );
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -328,24 +276,19 @@ class _InventoryScreenState extends State<InventoryScreen> {
               backgroundColor: _accent,
               foregroundColor: _isDark ? AppColors.background : Colors.white,
               tooltip: 'Add component',
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AddPartScreen()),
-              ),
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPartScreen())),
               child: const Icon(Icons.add),
             )
           : FloatingActionButton(
               backgroundColor: _accent,
               foregroundColor: _isDark ? AppColors.background : Colors.white,
               tooltip: 'Request Component',
-              onPressed: () =>
-                  StudentRequestDialog.show(context, _all, _isDark),
+              onPressed: () => StudentRequestDialog.show(context, _all, _isDark),
               child: const Icon(Icons.edit_note_rounded),
             ),
     );
   }
 
-  // ── Top bar ────────────────────────────────────────────────────────────────
   Widget _buildTopBar() {
     return Container(
       color: _surf,
@@ -353,74 +296,42 @@ class _InventoryScreenState extends State<InventoryScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // ── Logo ──────────────────────────────────────────────────────────
+          // ── Logo ────────────────────────────────────────────────────────
           Container(
-            width: 44,
-            height: 44,
+            width: 44, height: 44,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(color: _accent, width: 1.5),
-              boxShadow: [
-                BoxShadow(
-                  color: _accent.withOpacity(0.18),
-                  blurRadius: 10,
-                  spreadRadius: 1,
-                ),
-              ],
+              boxShadow: [BoxShadow(color: _accent.withOpacity(0.18), blurRadius: 10, spreadRadius: 1)],
             ),
             child: ClipOval(
-              child: Image.asset(
-                'lib/assets/logo.jpg',
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  color: _card,
-                  child: Center(
-                    child: Text(
-                      'ATL',
-                      style: GoogleFonts.inter(
-                        color: _accent,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              child: Image.asset('lib/assets/logo.jpg', fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    color: _card,
+                    child: Center(child: Text('ATL', style: GoogleFonts.inter(color: _accent, fontSize: 10, fontWeight: FontWeight.w900))),
+                  )),
             ),
           ),
-
           const SizedBox(width: 10),
 
-          // ── App name + count ───────────────────────────────────────────────
+          // ── App name ─────────────────────────────────────────────────────
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 RichText(
                   text: TextSpan(
-                    style: GoogleFonts.inter(
-                      color: _txtP,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.3,
-                      height: 1.1,
-                    ),
-                    children: const [
-                      TextSpan(text: 'ATL\n'),
-                      TextSpan(text: 'Inventory'),
-                    ],
+                    style: GoogleFonts.inter(color: _txtP, fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.3, height: 1.1),
+                    children: const [TextSpan(text: 'ATL\n'), TextSpan(text: 'Inventory')],
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  '${_filtered.length} component${_filtered.length != 1 ? 's' : ''}',
-                  style: GoogleFonts.inter(color: _txtM, fontSize: 10.5),
-                ),
+                Text('${_filtered.length} component${_filtered.length != 1 ? 's' : ''}', style: GoogleFonts.inter(color: _txtM, fontSize: 10.5)),
               ],
             ),
           ),
 
-          // ── Admin badge ────────────────────────────────────────────────────
+          // ── Admin badge ───────────────────────────────────────────────────
           if (_isAdmin)
             Container(
               margin: const EdgeInsets.only(right: 4),
@@ -435,177 +346,104 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 children: [
                   Icon(Icons.edit_outlined, color: _accent, size: 10),
                   const SizedBox(width: 3),
-                  Text(
-                    'Admin',
-                    style: GoogleFonts.inter(
-                      color: _accent,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  Text('Admin', style: GoogleFonts.inter(color: _accent, fontSize: 10, fontWeight: FontWeight.w600)),
                 ],
               ),
             ),
 
-          // ── Dark/Light toggle ──────────────────────────────────────────────
+          // ── Dark/Light toggle ─────────────────────────────────────────────
           IconButton(
-            icon: Icon(
-              _isDark ? Icons.wb_sunny_outlined : Icons.nightlight_outlined,
-              color: _txtM,
-              size: 19,
-            ),
+            icon: Icon(_isDark ? Icons.wb_sunny_outlined : Icons.nightlight_outlined, color: _txtM, size: 19),
             tooltip: 'Toggle theme',
-            onPressed: () => themeNotifier.value = _isDark
-                ? ThemeMode.light
-                : ThemeMode.dark,
+            onPressed: () => themeNotifier.value = _isDark ? ThemeMode.light : ThemeMode.dark,
           ),
 
-          // ── 3-dot menu ─────────────────────────────────────────────────────
-          PopupMenuButton<String>(
-            icon: Icon(Icons.more_vert_rounded, color: _txtM, size: 20),
-            color: _surf,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-            onSelected: (value) async {
-              switch (value) {
-                case 'qr':
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => QRScannerScreen(
-                        onScan: (v) => setState(() {
-                          _searchQuery = v;
-                          _searchCtrl.text = v;
-                          _applyFilters();
-                        }),
+          // ── 3-dot menu with red dot ───────────────────────────────────────
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              PopupMenuButton<String>(
+                icon: Icon(Icons.more_vert_rounded, color: _txtM, size: 20),
+                color: _surf,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                onSelected: (value) async {
+                  switch (value) {
+                    case 'qr':
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => QRScannerScreen(
+                            onScan: (v) => setState(() {
+                              _searchQuery = v;
+                              _searchCtrl.text = v;
+                              _applyFilters();
+                            }),
+                          ),
+                        ),
+                      );
+                      break;
+                    case 'requests':
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const RequestScreen()));
+                      break;
+                    case 'borrow':
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const BorrowScreen()));
+                      break;
+                    case 'export':
+                      await PdfExportService.exportComponents(context, _all);
+                      break;
+                    case 'admin':
+                      _toggleAdmin();
+                      break;
+                    case 'logout':
+                      await Supabase.instance.client.auth.signOut(scope: SignOutScope.global);
+                      if (!mounted) return;
+                      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+                      break;
+                  }
+                },
+                itemBuilder: (_) => [
+                  PopupMenuItem(value: 'qr', child: _menuItem(Icons.qr_code_scanner_outlined, 'QR Scanner')),
+                  if (_isAdmin) ...[
+                    const PopupMenuDivider(),
+                    PopupMenuItem(
+                      value: 'requests',
+                      child: Row(
+                        children: [
+                          Icon(Icons.inbox_outlined, size: 18, color: _txtM),
+                          const SizedBox(width: 12),
+                          Text('Component Requests', style: GoogleFonts.inter(color: _txtP, fontSize: 13, fontWeight: FontWeight.w500)),
+                          if (_pendingRequests > 0) ...[
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(10)),
+                              child: Text('$_pendingRequests', style: GoogleFonts.inter(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                  );
-                case 'requests':
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const RequestScreen()),
-                  );
-                  break;
-                  break;
-                case 'borrow':
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const BorrowScreen()),
-                  );
-                  break;
-                case 'export':
-                  await PdfExportService.exportComponents(context, _all);
-                  break;
-                case 'admin':
-                  _toggleAdmin();
-                  break;
-                case 'exit_admin':
-                  setState(() => _isAdmin = false);
-                  _snack('Admin mode off');
-                  break;
-                case 'logout':
-                  await Supabase.instance.client.auth.signOut(
-                    scope: SignOutScope.global,
-                  );
-                  if (!mounted) return;
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  );
-                  break;
-              }
-            },
-            itemBuilder: (_) => [
-              // ── QR Scanner ───────────────────────────────────────────────
-              PopupMenuItem(
-                value: 'qr',
-                child: _menuItem(Icons.qr_code_scanner_outlined, 'QR Scanner'),
+                    const PopupMenuDivider(),
+                    PopupMenuItem(value: 'borrow', child: _menuItem(Icons.assignment_outlined, 'Borrow Records')),
+                    PopupMenuItem(value: 'export', child: _menuItem(Icons.picture_as_pdf_outlined, 'Export Components PDF')),
+                  ],
+                  if (!_isAdmin) ...[
+                    const PopupMenuDivider(),
+                    PopupMenuItem(value: 'admin', child: _menuItem(Icons.admin_panel_settings_outlined, 'Login as Admin')),
+                  ],
+                  const PopupMenuDivider(),
+                  PopupMenuItem(value: 'logout', child: _menuItem(Icons.logout_outlined, 'Logout', color: _danger)),
+                ],
               ),
-              if (_isAdmin) ...[
-                const PopupMenuDivider(),
-                PopupMenuItem(
-                  value: 'requests',
-                  child: Row(
-                    children: [
-                      Icon(Icons.inbox_outlined, size: 18, color: _txtM),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Component Requests',
-                        style: GoogleFonts.inter(
-                          color: _txtP,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      if (_pendingRequests > 0) ...[
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _accent,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            '$_pendingRequests',
-                            style: GoogleFonts.inter(
-                              color: _isDark
-                                  ? AppColors.background
-                                  : Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
+              // ── Red dot when pending requests ─────────────────────────────
+              if (_pendingRequests > 0 && _isAdmin)
+                Positioned(
+                  top: 6, right: 6,
+                  child: Container(
+                    width: 8, height: 8,
+                    decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
                   ),
                 ),
-              ],
-              if (_isAdmin) ...[
-                const PopupMenuDivider(),
-                PopupMenuItem(
-                  value: 'borrow',
-                  child: _menuItem(Icons.assignment_outlined, 'Borrow Records'),
-                ),
-                PopupMenuItem(
-                  value: 'export',
-                  child: _menuItem(
-                    Icons.picture_as_pdf_outlined,
-                    'Export Components PDF',
-                  ),
-                ),
-                const PopupMenuDivider(),
-                PopupMenuItem(
-                  value: 'exit_admin',
-                  child: _menuItem(Icons.lock_outline, 'Exit Admin Mode'),
-                ),
-              ],
-
-              if (!_isAdmin) ...[
-                const PopupMenuDivider(),
-                PopupMenuItem(
-                  value: 'admin',
-                  child: _menuItem(
-                    Icons.admin_panel_settings_outlined,
-                    'Login as Admin',
-                  ),
-                ),
-              ],
-
-              const PopupMenuDivider(),
-              PopupMenuItem(
-                value: 'logout',
-                child: _menuItem(
-                  Icons.logout_outlined,
-                  'Logout',
-                  color: _danger,
-                ),
-              ),
             ],
           ),
         ],
@@ -618,19 +456,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
       children: [
         Icon(icon, size: 18, color: color ?? _txtM),
         const SizedBox(width: 12),
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            color: color ?? _txtP,
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
+        Text(label, style: GoogleFonts.inter(color: color ?? _txtP, fontSize: 13, fontWeight: FontWeight.w500)),
       ],
     );
   }
 
-  // ── Search ─────────────────────────────────────────────────────────────────
   Widget _buildSearch() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
@@ -660,7 +490,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 
-  // ── Category chips ─────────────────────────────────────────────────────────
   Widget _buildCategoryChips() {
     return SizedBox(
       height: 34,
@@ -680,25 +509,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
               }),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 6,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
                   color: sel ? _accent : _surf,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: sel ? _accent : _border),
                 ),
-                child: Text(
-                  cat,
-                  style: GoogleFonts.inter(
-                    color: sel
-                        ? (_isDark ? AppColors.background : Colors.white)
-                        : _txtM,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                child: Text(cat, style: GoogleFonts.inter(
+                  color: sel ? (_isDark ? AppColors.background : Colors.white) : _txtM,
+                  fontSize: 12, fontWeight: FontWeight.w600,
+                )),
               ),
             ),
           );
@@ -707,13 +527,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 
-  // ── Grid ───────────────────────────────────────────────────────────────────
   Widget _buildGrid() {
-    if (_loading) {
-      return Center(
-        child: CircularProgressIndicator(color: _accent, strokeWidth: 2),
-      );
-    }
+    if (_loading) return Center(child: CircularProgressIndicator(color: _accent, strokeWidth: 2));
 
     if (_filtered.isEmpty) {
       return Center(
@@ -722,18 +537,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
           children: [
             Icon(Icons.inventory_2_outlined, color: _txtM, size: 52),
             const SizedBox(height: 14),
-            Text(
-              _searchQuery.isNotEmpty
-                  ? 'No results for "$_searchQuery"'
-                  : 'No components yet',
-              style: GoogleFonts.inter(color: _txtM, fontSize: 15),
-            ),
+            Text(_searchQuery.isNotEmpty ? 'No results for "$_searchQuery"' : 'No components yet', style: GoogleFonts.inter(color: _txtM, fontSize: 15)),
             if (_isAdmin && _searchQuery.isEmpty) ...[
               const SizedBox(height: 8),
-              Text(
-                'Tap + to add your first component',
-                style: GoogleFonts.inter(color: _txtM, fontSize: 12),
-              ),
+              Text('Tap + to add your first component', style: GoogleFonts.inter(color: _txtM, fontSize: 12)),
             ],
           ],
         ),
@@ -743,29 +550,20 @@ class _InventoryScreenState extends State<InventoryScreen> {
     return GridView.builder(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 96),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        childAspectRatio: 0.78,
+        crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 0.78,
       ),
       itemCount: _filtered.length,
       itemBuilder: (_, i) => _PartCard(
         part: _filtered[i],
         isAdmin: _isAdmin,
         isDark: _isDark,
-        onEdit: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => AddPartScreen(part: _filtered[i])),
-        ),
+        onEdit: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AddPartScreen(part: _filtered[i]))),
         onDelete: () => _confirmDelete(_filtered[i]),
       ),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Part Card
-// ─────────────────────────────────────────────────────────────────────────────
 class _PartCard extends StatelessWidget {
   final Map<String, dynamic> part;
   final bool isAdmin;
@@ -773,19 +571,12 @@ class _PartCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
-  const _PartCard({
-    required this.part,
-    required this.isAdmin,
-    required this.isDark,
-    required this.onEdit,
-    required this.onDelete,
-  });
+  const _PartCard({required this.part, required this.isAdmin, required this.isDark, required this.onEdit, required this.onDelete});
 
   Color get _card => isDark ? AppColors.card : AppColorsLight.card;
   Color get _border => isDark ? AppColors.border : AppColorsLight.border;
   Color get _surf => isDark ? AppColors.surface : AppColorsLight.surface;
-  Color get _txtP =>
-      isDark ? AppColors.textPrimary : AppColorsLight.textPrimary;
+  Color get _txtP => isDark ? AppColors.textPrimary : AppColorsLight.textPrimary;
   Color get _txtM => isDark ? AppColors.textMuted : AppColorsLight.textMuted;
   Color get _accent => isDark ? AppColors.accent : AppColorsLight.accent;
   Color get _danger => isDark ? AppColors.danger : AppColorsLight.danger;
@@ -795,13 +586,7 @@ class _PartCard extends StatelessWidget {
     final total = (part['total_parts'] as num?)?.toInt() ?? 0;
     final avail = (part['availability'] as num?)?.toInt() ?? 0;
     final ratio = total > 0 ? (avail / total).clamp(0.0, 1.0) : 0.0;
-
-    final Color statusColor = ratio > 0.5
-        ? _accent
-        : ratio > 0.2
-        ? (isDark ? AppColors.warning : AppColorsLight.warning)
-        : _danger;
-
+    final Color statusColor = ratio > 0.5 ? _accent : ratio > 0.2 ? (isDark ? AppColors.warning : AppColorsLight.warning) : _danger;
     final imageUrl = part['image_url'] as String?;
 
     return GestureDetector(
@@ -811,15 +596,7 @@ class _PartCard extends StatelessWidget {
           color: _card,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: _border),
-          boxShadow: isDark
-              ? []
-              : [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+          boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8, offset: const Offset(0, 2))],
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -827,32 +604,29 @@ class _PartCard extends StatelessWidget {
           children: [
             // ── Image ──────────────────────────────────────────────────────
             Stack(
-              clipBehavior: Clip.none,
               children: [
-                PopupMenuButton<String>(
-                  // ... same as before but:
-                  // - Remove 'exit_admin' case from onSelected
-                  // - Remove Exit Admin Mode menu item
-                  // - Change logout case to use SignOutScope.global
-                  // - Request count badge is RED color
+                SizedBox(
+                  height: 130, width: double.infinity,
+                  child: imageUrl != null && imageUrl.isNotEmpty
+                      ? Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _placeholder())
+                      : _placeholder(),
                 ),
-                if (_pendingRequests > 0 && _isAdmin)
+                if ((part['condition'] as String?) != null && part['condition'] != 'Good')
                   Positioned(
-                    top: 6,
-                    right: 6,
+                    top: 7, right: 7,
                     child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: part['condition'] == 'Damaged' ? _danger.withOpacity(0.85) : const Color(0xFFFFB300).withOpacity(0.85),
+                        borderRadius: BorderRadius.circular(6),
                       ),
+                      child: Text(part['condition'], style: GoogleFonts.inter(color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.w700)),
                     ),
                   ),
               ],
             ),
 
-            // ── Info ───────────────────────────────────────────────────────
+            // ── Info ────────────────────────────────────────────────────────
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(10, 5, 10, 5),
@@ -863,100 +637,42 @@ class _PartCard extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          part['part_name'] ?? 'Unnamed',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            color: _txtP,
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                            height: 1.25,
-                          ),
-                        ),
+                        Text(part['part_name'] ?? 'Unnamed', maxLines: 2, overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(color: _txtP, fontSize: 12.5, fontWeight: FontWeight.w700, height: 1.25)),
                         const SizedBox(height: 3),
                         Row(
                           children: [
-                            if ((part['category'] as String? ?? '')
-                                .isNotEmpty) ...[
+                            if ((part['category'] as String? ?? '').isNotEmpty) ...[
                               Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 5,
-                                  vertical: 1.5,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: _accent.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  part['category'],
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.inter(
-                                    color: _accent,
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                decoration: BoxDecoration(color: _accent.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                                child: Text(part['category'], maxLines: 1, overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.inter(color: _accent, fontSize: 9.5, fontWeight: FontWeight.w600)),
                               ),
                               const SizedBox(width: 5),
                             ],
-                            Text(
-                              'Box ${part['box_no'] ?? '-'}',
-                              style: GoogleFonts.inter(
-                                color: _txtM,
-                                fontSize: 9.5,
-                              ),
-                            ),
+                            Text('Box ${part['box_no'] ?? '-'}', style: GoogleFonts.inter(color: _txtM, fontSize: 9.5)),
                           ],
                         ),
                       ],
                     ),
-
                     Row(
                       children: [
-                        SizedBox(
-                          width: 32,
-                          height: 32,
-                          child: CustomPaint(
-                            painter: _ArcPainter(ratio, statusColor, _border),
-                          ),
-                        ),
+                        SizedBox(width: 32, height: 32, child: CustomPaint(painter: _ArcPainter(ratio, statusColor, _border))),
                         const SizedBox(width: 7),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                '$avail / $total',
-                                style: GoogleFonts.inter(
-                                  color: statusColor,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              Text(
-                                'available',
-                                style: GoogleFonts.inter(
-                                  color: _txtM,
-                                  fontSize: 9,
-                                ),
-                              ),
+                              Text('$avail / $total', style: GoogleFonts.inter(color: statusColor, fontSize: 13, fontWeight: FontWeight.w800)),
+                              Text('available', style: GoogleFonts.inter(color: _txtM, fontSize: 9)),
                             ],
                           ),
                         ),
                         if (isAdmin) ...[
-                          _miniBtn(
-                            icon: Icons.edit_outlined,
-                            color: _accent,
-                            onTap: onEdit,
-                          ),
+                          _miniBtn(icon: Icons.edit_outlined, color: _accent, onTap: onEdit),
                           const SizedBox(width: 4),
-                          _miniBtn(
-                            icon: Icons.delete_outline,
-                            color: _danger,
-                            onTap: onDelete,
-                          ),
+                          _miniBtn(icon: Icons.delete_outline, color: _danger, onTap: onDelete),
                         ],
                       ],
                     ),
@@ -970,34 +686,20 @@ class _PartCard extends StatelessWidget {
     );
   }
 
-  Widget _placeholder() => Container(
-    color: _surf,
-    child: Center(child: Icon(Icons.memory_outlined, color: _txtM, size: 32)),
-  );
+  Widget _placeholder() => Container(color: _surf, child: Center(child: Icon(Icons.memory_outlined, color: _txtM, size: 32)));
 
-  Widget _miniBtn({
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
+  Widget _miniBtn({required IconData icon, required Color color, required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 28,
-        height: 28,
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
+        width: 28, height: 28,
+        decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
         child: Icon(icon, color: color, size: 14),
       ),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Arc painter
-// ─────────────────────────────────────────────────────────────────────────────
 class _ArcPainter extends CustomPainter {
   final double ratio;
   final Color color;
@@ -1008,40 +710,14 @@ class _ArcPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final c = Offset(size.width / 2, size.height / 2);
     final r = size.width / 2 - 2.5;
-
-    final bgPaint = Paint()
-      ..color = bgColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
-      ..strokeCap = StrokeCap.round;
-
-    final fgPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawArc(
-      Rect.fromCircle(center: c, radius: r),
-      -math.pi / 2,
-      2 * math.pi,
-      false,
-      bgPaint,
-    );
-
+    final bgPaint = Paint()..color = bgColor..style = PaintingStyle.stroke..strokeWidth = 3..strokeCap = StrokeCap.round;
+    final fgPaint = Paint()..color = color..style = PaintingStyle.stroke..strokeWidth = 3..strokeCap = StrokeCap.round;
+    canvas.drawArc(Rect.fromCircle(center: c, radius: r), -math.pi / 2, 2 * math.pi, false, bgPaint);
     if (ratio > 0) {
-      final sweep = 2 * math.pi * ratio.clamp(0.0, 0.999);
-      canvas.drawArc(
-        Rect.fromCircle(center: c, radius: r),
-        -math.pi / 2,
-        sweep,
-        false,
-        fgPaint,
-      );
+      canvas.drawArc(Rect.fromCircle(center: c, radius: r), -math.pi / 2, 2 * math.pi * ratio.clamp(0.0, 0.999), false, fgPaint);
     }
   }
 
   @override
-  bool shouldRepaint(covariant _ArcPainter old) =>
-      old.ratio != ratio || old.color != color;
+  bool shouldRepaint(covariant _ArcPainter old) => old.ratio != ratio || old.color != color;
 }
